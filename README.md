@@ -633,3 +633,16 @@ FINAL REQUIREMENT
 Create a production-quality SaaS recruitment platform that looks like a real enterprise HR product.
 
 The UI should be clean, modern, premium, recruiter-friendly, and impressive enough for a hackathon demo presentation.
+
+
+
+
+
+
+
+
+
+
+
+
+Design a hyper-modern, clean enterprise B2B login page for an AI-powered recruitment screening tool. Use a split-screen layout. Left side: Slate-blue background (#1A365D) with a subtle, abstract minimalist graphic representing data matching or candidate ranking, and a bold testimonial quote. Right side: Clean white background (#F8FAFC) featuring a centered login form. Include fields for Email, Password ("forgot password" link aligned right), a prominent Emerald Mint (#10B981) "Sign In" button, and a divider leading to "Sign in with Google" and "Sign in with Microsoft" SSO buttons. Use Tailwind CSS, sharp typography (Inter font family), and ample whitespace. 
