@@ -100,7 +100,7 @@ export function HiringDecisionRoom() {
                     <button
                       onClick={() => decide(c.id, 'shortlisted')}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        decision === 'shortlisted' ? 'bg-emerald-500 text-white border-emerald-500' : 'border-border text-text-secondary hover:bg-emerald-50 hover:text-emerald-600'
+                        decision === 'shortlisted' ? 'btn-gradient text-white border-transparent' : 'border-border text-text-secondary hover:bg-emerald-50 hover:text-emerald-600'
                       }`}
                     >
                       <Star size={12} /> Shortlist
@@ -116,7 +116,7 @@ export function HiringDecisionRoom() {
                     <button
                       onClick={() => decide(c.id, 'rejected')}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        decision === 'rejected' ? 'bg-red-500 text-white border-red-500' : 'border-border text-text-secondary hover:bg-red-50 hover:text-red-600'
+                        decision === 'rejected' ? 'btn-gradient text-white border-transparent' : 'border-border text-text-secondary hover:bg-red-50 hover:text-red-600'
                       }`}
                     >
                       <XCircle size={12} /> Reject

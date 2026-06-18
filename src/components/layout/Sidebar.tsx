@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, FileText, Users, Brain,
-  MessageSquare, BarChart3, ChevronRight, LogOut,
+  LayoutDashboard, FileText, Users, MessageSquare, ChevronRight, LogOut,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
@@ -12,9 +11,7 @@ const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Job Descriptions', icon: FileText, path: '/dashboard/jobs' },
   { label: 'Candidates', icon: Users, path: '/dashboard/candidates' },
-  { label: 'AI Analysis', icon: Brain, path: '/dashboard/ai-processing' },
   { label: 'Interview Assistant', icon: MessageSquare, path: '/dashboard/interview' },
-  { label: 'Reports', icon: BarChart3, path: '/dashboard/reports' },
 ];
 
 function getUserInitials(name: string) {
@@ -36,7 +33,12 @@ function getStoredUser() {
   return { full_name: '', email: '' };
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [popupOpen, setPopupOpen] = useState(false);
@@ -44,14 +46,14 @@ export function Sidebar() {
   const displayName = user.full_name || user.email || 'User';
   const initials = getUserInitials(displayName);
 
-  return (
-    <aside className="w-64 bg-white border-r border-border flex flex-col fixed left-0 top-16 bottom-0 z-30">
+  const sidebarContent = (
+    <>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-thin">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path ||
             (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
           return (
-            <NavLink key={item.path} to={item.path}>
+            <NavLink key={item.path} to={item.path} onClick={onClose}>
               <motion.div
                 whileHover={{ x: 2 }}
                 className={cn(
@@ -74,9 +76,7 @@ export function Sidebar() {
         <AnimatePresence>
           {popupOpen && (
             <>
-              {/* Backdrop */}
               <div className="fixed inset-0 z-40" onClick={() => setPopupOpen(false)} />
-              {/* Popup */}
               <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -95,6 +95,7 @@ export function Sidebar() {
                       localStorage.removeItem('talentiq_auth');
                       localStorage.removeItem('talentiq_user');
                       setPopupOpen(false);
+                      onClose();
                       navigate('/login');
                     }}
                   >
@@ -121,6 +122,38 @@ export function Sidebar() {
           </div>
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 z-30 md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar — always visible on desktop, slide-in drawer on mobile */}
+      <aside
+        className={cn(
+          'w-64 bg-white border-r border-border flex flex-col fixed left-0 top-16 bottom-0 z-40',
+          'transition-transform duration-300 ease-in-out',
+          // Desktop: always shown
+          'md:translate-x-0',
+          // Mobile: controlled by isOpen
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

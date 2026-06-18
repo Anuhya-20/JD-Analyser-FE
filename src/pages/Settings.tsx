@@ -191,7 +191,7 @@ function ToggleSwitch({ defaultOn }: { defaultOn: boolean }) {
   return (
     <button
       onClick={() => setOn(v => !v)}
-      className={`w-11 h-6 rounded-full transition-colors relative ${on ? 'bg-primary-600' : 'bg-gray-200'}`}
+      className={`w-11 h-6 rounded-full transition-colors relative ${on ? 'btn-gradient' : 'bg-gray-200'}`}
     >
       <motion.div
         animate={{ x: on ? 20 : 2 }}

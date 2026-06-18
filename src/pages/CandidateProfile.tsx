@@ -179,11 +179,11 @@ export function CandidateProfile() {
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex gap-2">
                     {actionStatus === 'accepted' ? (
-                      <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">
-                        <CheckCircle2 size={15} /> Accepted
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-white btn-gradient px-3 py-1.5 rounded-lg">
+                        <CheckCircle2 size={15} /> Shortlisted
                       </span>
                     ) : actionStatus === 'rejected' ? (
-                      <span className="flex items-center gap-1.5 text-sm font-semibold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-white btn-gradient px-3 py-1.5 rounded-lg opacity-60">
                         <XCircle size={15} /> Rejected
                       </span>
                     ) : (
@@ -191,15 +191,15 @@ export function CandidateProfile() {
                         <button
                           onClick={() => handleDecision('accepted')}
                           disabled={actionStatus === 'accepting' || actionStatus === 'rejecting'}
-                          className="flex items-center gap-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-4 py-1.5 rounded-lg transition-colors"
+                          className="flex items-center gap-1.5 text-sm font-medium text-white btn-gradient disabled:opacity-50 px-4 py-1.5 rounded-lg transition-colors"
                         >
                           {actionStatus === 'accepting' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          Accept
+                          Shortlist
                         </button>
                         <button
                           onClick={() => handleDecision('rejected')}
                           disabled={actionStatus === 'accepting' || actionStatus === 'rejecting'}
-                          className="flex items-center gap-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-4 py-1.5 rounded-lg transition-colors"
+                          className="flex items-center gap-1.5 text-sm font-medium text-white btn-gradient disabled:opacity-50 px-4 py-1.5 rounded-lg transition-colors"
                         >
                           {actionStatus === 'rejecting' ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                           Reject

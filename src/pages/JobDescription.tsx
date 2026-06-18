@@ -376,7 +376,7 @@ export function JobDescription() {
                     <button
                       onClick={() => toggleActive(job.id, activeJobs[job.id])}
                       className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
-                        activeJobs[job.id] ? 'bg-primary-600' : 'bg-gray-300'
+                        activeJobs[job.id] ? 'btn-gradient' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -392,14 +392,14 @@ export function JobDescription() {
                 </div>
                 <button
                   onClick={() => navigate(`/dashboard/jobs/${job.id}`)}
-                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-colors"
                 >
                   <FileText size={12} />
                   View JD
                 </button>
                 <button
                   onClick={() => navigate(`/dashboard/candidates?jd_id=${job.id}&tab=rankings`)}
-                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-colors"
                 >
                   <Eye size={12} />
                   View Results
