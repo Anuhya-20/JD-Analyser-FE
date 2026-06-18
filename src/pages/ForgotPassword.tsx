@@ -142,36 +142,38 @@ export function ForgotPassword() {
     }
   };
 
-  /* ── Step 2: advance to password reset (OTP validated server-side with the password) ── */
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  /* ── Step 2: verify OTP ── */
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.join('').length < OTP_LENGTH) return;
+    const code = otp.join('');
+    if (code.length < OTP_LENGTH) return;
     setApiError('');
-    setOtpError(false);
-    setStep('reset');
+    setLoading(true);
+    try {
+      await api.post('/api/v1/auth/verify-otp', { email, otp: code });
+      setOtpError(false);
+      setStep('reset');
+    } catch (err) {
+      setOtpError(true);
+      setApiError(parseError(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /* ── Step 3: reset password — sends email + otp + passwords in one call ── */
+  /* ── Step 3: reset password ── */
   const handleResetPassword = async (data: ResetForm) => {
     setApiError('');
     setLoading(true);
     try {
       await api.post('/api/v1/auth/reset-password', {
         email,
-        otp: otp.join(''),
         new_password: data.password,
         confirm_password: data.confirm,
       });
       setStep('done');
     } catch (err) {
-      const msg = parseError(err);
-      setApiError(msg);
-      // If OTP is wrong, go back to OTP step so the user can re-enter
-      if (msg.toLowerCase().includes('otp')) {
-        setOtpError(true);
-        setOtp(Array(OTP_LENGTH).fill(''));
-        setStep('otp');
-      }
+      setApiError(parseError(err));
     } finally {
       setLoading(false);
     }
