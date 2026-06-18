@@ -1,55 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap, User } from 'lucide-react';
 
-/* ─────────────────────────────────────────────────────────
-   Minimal concentric-ring SVG illustration
-   Metaphor: precision candidate targeting / AI matching
-───────────────────────────────────────────────────────── */
 function OrbArt() {
   return (
     <svg viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* ── Rings (outermost → innermost) ── */}
       <circle cx="140" cy="140" r="130" stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
       <circle cx="140" cy="140" r="100" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
       <circle cx="140" cy="140" r="70"  stroke="rgba(255,255,255,0.11)" strokeWidth="1.5"/>
       <circle cx="140" cy="140" r="40"  stroke="rgba(255,255,255,0.18)" strokeWidth="1.5"
         fill="rgba(255,255,255,0.025)"/>
-
-      {/* ── Bright arc on inner ring (upper half = "match zone") ── */}
       <path d="M 100 140 A 40 40 0 0 0 180 140"
         stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round"/>
-
-      {/* ── Center glow ── */}
       <circle cx="140" cy="140" r="12" fill="rgba(255,255,255,0.08)"/>
       <circle cx="140" cy="140" r="5"  fill="rgba(255,255,255,0.45)"/>
-
-      {/* ── Mid-ring nodes (r=70, pentagon, from 12 o'clock) ── */}
-      {/* Top — "winner" node, brightest */}
       <circle cx="140" cy="70"  r="5.5" fill="rgba(255,255,255,0.55)"/>
-      {/* 72° */}
       <circle cx="207" cy="118" r="3.5" fill="rgba(255,255,255,0.22)"/>
-      {/* 144° */}
       <circle cx="181" cy="197" r="3.5" fill="rgba(255,255,255,0.18)"/>
-      {/* 216° */}
       <circle cx="99"  cy="197" r="3.5" fill="rgba(255,255,255,0.16)"/>
-      {/* 288° */}
       <circle cx="73"  cy="118" r="3.5" fill="rgba(255,255,255,0.2)"/>
-
-      {/* ── Outer-ring nodes (r=100, cardinal points) ── */}
       <circle cx="140" cy="40"  r="3" fill="rgba(255,255,255,0.11)"/>
       <circle cx="240" cy="140" r="3" fill="rgba(255,255,255,0.11)"/>
       <circle cx="140" cy="240" r="3" fill="rgba(255,255,255,0.09)"/>
       <circle cx="40"  cy="140" r="3" fill="rgba(255,255,255,0.09)"/>
-
-      {/* ── Subtle radial spokes from center → top two mid nodes ── */}
       <line x1="140" y1="140" x2="140" y2="70"
         stroke="rgba(255,255,255,0.07)" strokeWidth="0.9"/>
       <line x1="140" y1="140" x2="207" y2="118"
         stroke="rgba(255,255,255,0.05)" strokeWidth="0.9"/>
-
-      {/* ── Tiny scatter dots for depth ── */}
       <circle cx="188" cy="58"  r="1.8" fill="rgba(255,255,255,0.13)"/>
       <circle cx="248" cy="120" r="1.5" fill="rgba(255,255,255,0.09)"/>
       <circle cx="55"  cy="172" r="1.5" fill="rgba(255,255,255,0.09)"/>
@@ -59,36 +37,49 @@ function OrbArt() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   Login page
-───────────────────────────────────────────────────────── */
-export function Login() {
+export function Signup() {
   const navigate = useNavigate();
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [loading,  setLoading]  = useState(false);
+  const [fullName,       setFullName]       = useState('');
+  const [email,          setEmail]          = useState('');
+  const [password,       setPassword]       = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass,       setShowPass]       = useState(false);
+  const [showConfirm,    setShowConfirm]    = useState(false);
+  const [loading,        setLoading]        = useState(false);
+  const [confirmError,   setConfirmError]   = useState(false);
+  const [apiError,       setApiError]       = useState('');
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setConfirmError(true);
+      return;
+    }
+    setConfirmError(false);
+    setApiError('');
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      localStorage.setItem('talentiq_auth', 'true');
-      const existing = localStorage.getItem('talentiq_user');
-      if (!existing) {
-        localStorage.setItem('talentiq_user', JSON.stringify({ full_name: '', email }));
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ email, full_name: fullName, password, confirm_password: confirmPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.detail?.[0]?.msg || data?.detail || 'Registration failed. Please try again.';
+        setApiError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        return;
       }
+      localStorage.setItem('talentiq_auth', 'true');
+      localStorage.setItem('talentiq_user', JSON.stringify({ full_name: fullName, email }));
       navigate('/dashboard');
-    }, 1400);
+    } catch {
+      setApiError('Unable to connect to the server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSSO = () => {
-    localStorage.setItem('talentiq_auth', 'true');
-    navigate('/dashboard');
-  };
-
-  /* Blue focus ring on inputs */
   const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = '#2563EB';
     e.target.style.boxShadow   = '0 0 0 3px rgba(37,99,235,0.13)';
@@ -102,13 +93,12 @@ export function Login() {
     <div className="h-screen overflow-hidden flex antialiased" style={{ fontFamily: "'Poppins', sans-serif" }}>
 
       {/* ════════════════════════════════════════════
-          LEFT — clean blue hero
+          LEFT — blue hero panel
       ════════════════════════════════════════════ */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col p-12 relative overflow-hidden"
         style={{ background: 'linear-gradient(155deg, #1E3A8A 0%, #1E40AF 55%, #1A365D 100%)' }}
       >
-
         {/* Dot-grid texture */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px)',
@@ -120,7 +110,7 @@ export function Login() {
           background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255,255,255,0.05) 0%, transparent 70%)',
         }}/>
 
-        {/* ── Logo ── */}
+        {/* Logo */}
         <div className="relative z-10">
           <img
             src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
@@ -129,10 +119,8 @@ export function Login() {
           />
         </div>
 
-        {/* ── Hero (center of panel) ── */}
+        {/* Hero */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
-
-          {/* Orb illustration */}
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -142,7 +130,6 @@ export function Login() {
             <OrbArt/>
           </motion.div>
 
-          {/* Text block — centered, minimal */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -172,7 +159,7 @@ export function Login() {
           </motion.div>
         </div>
 
-        {/* ── Trust strip (bottom) ── */}
+        {/* Trust strip */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -195,12 +182,11 @@ export function Login() {
         </motion.div>
       </div>
 
-
       {/* ════════════════════════════════════════════
           RIGHT — white form panel
       ════════════════════════════════════════════ */}
       <div
-        className="flex-1 lg:w-1/2 flex items-center justify-center p-8 sm:p-14"
+        className="flex-1 lg:w-1/2 flex items-center justify-center p-6 sm:p-8"
         style={{ backgroundColor: '#F8FAFC' }}
       >
         <motion.div
@@ -220,29 +206,66 @@ export function Login() {
           </div>
 
           {/* Heading */}
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 20 }}>
             <h1 style={{
               fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
               color: '#0F172A', marginBottom: 6,
             }}>
-              Welcome back
+              Create your account
             </h1>
             <p style={{ fontSize: 14, color: '#64748B' }}>
-              Sign in to your recruitment dashboard
+              Start hiring smarter today
             </p>
           </div>
 
-          {/* ── Form ── */}
-          <form onSubmit={handleSignIn}>
+          {/* Form */}
+          <form onSubmit={handleSignUp}>
 
-            {/* Email */}
-            <div style={{ marginBottom: 18 }}>
+            {/* Full Name */}
+            <div style={{ marginBottom: 13 }}>
               <label style={{
                 display: 'block', fontSize: 11, fontWeight: 600,
                 letterSpacing: '0.07em', textTransform: 'uppercase',
                 color: '#374151', marginBottom: 8,
               }}>
-                Email Address
+                Full Name
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User size={14} style={{
+                  position: 'absolute', left: 13, top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#9CA3AF', pointerEvents: 'none',
+                }}/>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  placeholder="Jane Smith"
+                  required
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '11px 14px 11px 38px',
+                    borderRadius: 12, fontSize: 14,
+                    border: '1.5px solid #E2E8F0',
+                    background: 'white', color: '#0F172A',
+                    outline: 'none',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                />
+              </div>
+            </div>
+
+
+            {/* Email */}
+            <div style={{ marginBottom: 13 }}>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#374151', marginBottom: 8,
+              }}>
+                Work Email
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail size={14} style={{
@@ -272,33 +295,14 @@ export function Login() {
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: 26 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', marginBottom: 8,
+            <div style={{ marginBottom: 13 }}>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#374151', marginBottom: 8,
               }}>
-                <label style={{
-                  fontSize: 11, fontWeight: 600,
-                  letterSpacing: '0.07em', textTransform: 'uppercase',
-                  color: '#374151',
-                }}>
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => navigate('/forgot-password')}
-                  style={{
-                    fontSize: 12.5, fontWeight: 500, color: '#2563EB',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', padding: 0,
-                    transition: 'color 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#1D4ED8')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#2563EB')}
-                >
-                  Forgot password?
-                </button>
-              </div>
+                Password
+              </label>
               <div style={{ position: 'relative' }}>
                 <Lock size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
@@ -311,7 +315,7 @@ export function Login() {
                   onChange={e => setPassword(e.target.value)}
                   onFocus={onFocus}
                   onBlur={onBlur}
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   required
                   style={{
                     width: '100%', boxSizing: 'border-box',
@@ -342,7 +346,75 @@ export function Login() {
               </div>
             </div>
 
-            {/* Sign In */}
+            {/* Confirm Password */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#374151', marginBottom: 8,
+              }}>
+                Confirm Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={14} style={{
+                  position: 'absolute', left: 13, top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: confirmError ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
+                }}/>
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={e => { setConfirmPassword(e.target.value); setConfirmError(false); }}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  placeholder="Re-enter your password"
+                  required
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '11px 40px 11px 38px',
+                    borderRadius: 12, fontSize: 14,
+                    border: `1.5px solid ${confirmError ? '#EF4444' : '#E2E8F0'}`,
+                    background: 'white', color: '#0F172A',
+                    outline: 'none',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(v => !v)}
+                  style={{
+                    position: 'absolute', right: 13, top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none', border: 'none',
+                    cursor: 'pointer', padding: 2,
+                    display: 'flex', color: '#9CA3AF',
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#4B5563')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
+                >
+                  {showConfirm ? <EyeOff size={15}/> : <Eye size={15}/>}
+                </button>
+              </div>
+              {confirmError && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  Passwords do not match.
+                </p>
+              )}
+            </div>
+
+            {/* API error */}
+            {apiError && (
+              <div style={{
+                marginBottom: 14, padding: '10px 14px', borderRadius: 10,
+                background: '#FEF2F2', border: '1px solid #FECACA',
+                fontSize: 13, color: '#DC2626',
+              }}>
+                {apiError}
+              </div>
+            )}
+
+            {/* Create Account */}
             <button
               type="submit"
               disabled={loading}
@@ -359,14 +431,14 @@ export function Login() {
               }}
               onMouseEnter={e => {
                 if (!loading) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 6px 22px rgba(10,108,203,0.45)';
+                  (e.currentTarget as HTMLButtonElement).style.background  = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow   = '0 6px 22px rgba(10,108,203,0.45)';
                 }
               }}
               onMouseLeave={e => {
                 if (!loading) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 4px 16px rgba(10,108,203,0.35)';
+                  (e.currentTarget as HTMLButtonElement).style.background  = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow   = '0 4px 16px rgba(10,108,203,0.35)';
                 }
               }}
             >
@@ -378,20 +450,19 @@ export function Login() {
                     borderTopColor: 'white',
                     animation: 'tiq-spin 0.7s linear infinite',
                   }}/>
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                <>Sign In <ArrowRight size={15}/></>
+                <>Create Account <ArrowRight size={15}/></>
               )}
             </button>
 
-
-            {/* Sign up link */}
+            {/* Sign in link */}
             <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13.5, color: '#64748B' }}>
-              Don&apos;t have an account?{' '}
+              Already have an account?{' '}
               <button
                 type="button"
-                onClick={() => navigate('/signup')}
+                onClick={() => navigate('/login')}
                 style={{
                   fontWeight: 600, color: '#2563EB',
                   background: 'none', border: 'none',
@@ -401,7 +472,7 @@ export function Login() {
                 onMouseEnter={e => (e.currentTarget.style.color = '#1D4ED8')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#2563EB')}
               >
-                Sign up
+                Sign in
               </button>
             </p>
           </form>

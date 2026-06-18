@@ -70,7 +70,7 @@ export function AICopilot() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setOpen(v => !v)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-primary-600 to-primary-700 rounded-full shadow-lg flex items-center justify-center text-white"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 btn-gradient rounded-full shadow-lg flex items-center justify-center text-white"
       >
         <AnimatePresence mode="wait">
           {open ? (
@@ -173,7 +173,7 @@ export function AICopilot() {
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim()}
-                className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center text-white hover:bg-primary-700 transition-colors disabled:opacity-50"
+                className="w-9 h-9 btn-gradient rounded-xl flex items-center justify-center text-white hover:btn-gradient-hover transition-all disabled:opacity-50"
               >
                 <Send size={14} />
               </button>

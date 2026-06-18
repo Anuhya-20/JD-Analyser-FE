@@ -265,14 +265,14 @@ export function JobDescription() {
               </div>
               <button
                 onClick={() => navigate(`/dashboard/jobs/${job.id}`)}
-                className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-all"
               >
                 <FileText size={12} />
                 View JD
               </button>
               <button
                 onClick={() => navigate('/dashboard/rankings')}
-                className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-all"
               >
                 <Eye size={12} />
                 View Results

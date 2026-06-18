@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowLeft, ArrowRight, CheckCircle, ShieldCheck, Globe, Zap } from 'lucide-react';
 
 function OrbArt() {
@@ -35,50 +35,127 @@ function OrbArt() {
   );
 }
 
+const OTP_LENGTH = 6;
+
 export function ForgotPassword() {
   const navigate = useNavigate();
-  const [email, setEmail]     = useState('');
+
+  // step: 'email' | 'otp' | 'done'
+  const [step,    setStep]    = useState<'email' | 'otp' | 'done'>('email');
+  const [email,   setEmail]   = useState('');
+  const [otp,     setOtp]     = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [otpError, setOtpError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sent, setSent]       = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = '#2563EB';
     e.target.style.boxShadow   = '0 0 0 3px rgba(37,99,235,0.13)';
   };
   const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#E2E8F0';
+    e.target.style.borderColor = otpError ? '#EF4444' : '#E2E8F0';
     e.target.style.boxShadow   = 'none';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  /* ── Step 1: send OTP ── */
+  const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setSent(true);
+      setStep('otp');
+      startResendCooldown();
     }, 1400);
   };
 
-  return (
-    <div className="min-h-screen flex font-sans antialiased">
+  /* ── Step 2: verify OTP ── */
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otp.join('');
+    if (code.length < OTP_LENGTH) return;
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      // accept any 6-digit code for demo
+      if (code === '000000') {
+        setOtpError(true);
+      } else {
+        setOtpError(false);
+        setStep('done');
+      }
+    }, 1200);
+  };
 
-      {/* ── LEFT blue hero panel (same as Login) ── */}
+  /* ── Resend cooldown (30 s) ── */
+  const startResendCooldown = () => {
+    setResendCooldown(30);
+    const id = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) { clearInterval(id); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResend = () => {
+    if (resendCooldown > 0) return;
+    setOtp(Array(OTP_LENGTH).fill(''));
+    setOtpError(false);
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      startResendCooldown();
+    }, 800);
+  };
+
+  /* ── OTP input handling ── */
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otp];
+    next[index] = value.slice(-1);
+    setOtp(next);
+    setOtpError(false);
+    if (value && index < OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    if (!text) return;
+    e.preventDefault();
+    const next = Array(OTP_LENGTH).fill('');
+    text.split('').forEach((ch, i) => { next[i] = ch; });
+    setOtp(next);
+    inputRefs.current[Math.min(text.length, OTP_LENGTH - 1)]?.focus();
+  };
+
+  return (
+    <div className="h-screen overflow-hidden flex antialiased" style={{ fontFamily: "'Poppins', sans-serif" }}>
+
+      {/* ════════════════════════════════════════════
+          LEFT — blue hero panel
+      ════════════════════════════════════════════ */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col p-12 relative overflow-hidden"
         style={{ background: 'linear-gradient(155deg, #1E3A8A 0%, #1E40AF 55%, #1A365D 100%)' }}
       >
-        {/* Dot-grid texture */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}/>
-
-        {/* Centre glow */}
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255,255,255,0.05) 0%, transparent 70%)',
         }}/>
 
-        {/* Logo */}
         <div className="relative z-10">
           <img
             src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
@@ -87,7 +164,6 @@ export function ForgotPassword() {
           />
         </div>
 
-        {/* Hero */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
@@ -113,21 +189,16 @@ export function ForgotPassword() {
             </p>
             <h2 style={{
               fontSize: 33, fontWeight: 800, lineHeight: 1.14,
-              letterSpacing: '-0.03em', marginBottom: 14,
-              color: 'white',
+              letterSpacing: '-0.03em', marginBottom: 14, color: 'white',
             }}>
               Find the right hire.<br/>Not just any hire.
             </h2>
-            <p style={{
-              fontSize: 14, lineHeight: 1.65, maxWidth: 295,
-              color: 'rgba(255,255,255,0.42)',
-            }}>
+            <p style={{ fontSize: 14, lineHeight: 1.65, maxWidth: 295, color: 'rgba(255,255,255,0.42)' }}>
               Intelligent candidate screening that surfaces real talent &mdash; in seconds, not weeks.
             </p>
           </motion.div>
         </div>
 
-        {/* Trust strip */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -150,9 +221,11 @@ export function ForgotPassword() {
         </motion.div>
       </div>
 
-      {/* ── RIGHT form panel ── */}
+      {/* ════════════════════════════════════════════
+          RIGHT — form panel
+      ════════════════════════════════════════════ */}
       <div
-        className="flex-1 lg:w-1/2 flex items-center justify-center p-8 sm:p-14"
+        className="flex-1 lg:w-1/2 flex items-center justify-center p-8"
         style={{ backgroundColor: '#F8FAFC' }}
       >
         <motion.div
@@ -164,159 +237,277 @@ export function ForgotPassword() {
           {/* Mobile logo */}
           <div className="lg:hidden mb-10">
             <img
-              src="https://storage.googleapis.com/bilvantis-website-buc/Header/Bilvantis%20logo.svg"
+              src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
               alt="Bilvantis"
               style={{ height: 32 }}
             />
           </div>
 
-          {!sent ? (
-            <>
-              <div style={{ marginBottom: 32 }}>
-                <h1 style={{
-                  fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
-                  color: '#0F172A', marginBottom: 6,
-                }}>
-                  Forgot password?
-                </h1>
-                <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6 }}>
-                  Enter your email and we'll send you a reset link.
-                </p>
-              </div>
+          <AnimatePresence mode="wait">
 
-              <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: 22 }}>
-                  <label style={{
-                    display: 'block', fontSize: 11, fontWeight: 600,
-                    letterSpacing: '0.07em', textTransform: 'uppercase',
-                    color: '#374151', marginBottom: 8,
+            {/* ── Step 1: Enter email ── */}
+            {step === 'email' && (
+              <motion.div
+                key="email"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div style={{ marginBottom: 32 }}>
+                  <h1 style={{
+                    fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
+                    color: '#0F172A', marginBottom: 6,
                   }}>
-                    Email Address
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={14} style={{
-                      position: 'absolute', left: 13, top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#9CA3AF', pointerEvents: 'none',
-                    }} />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      onFocus={onFocus}
-                      onBlur={onBlur}
-                      placeholder="you@company.com"
-                      required
-                      style={{
-                        width: '100%', boxSizing: 'border-box',
-                        padding: '11px 14px 11px 38px',
-                        borderRadius: 12, fontSize: 14,
-                        border: '1.5px solid #E2E8F0',
-                        background: 'white', color: '#0F172A',
-                        outline: 'none',
-                        transition: 'border-color 0.15s, box-shadow 0.15s',
-                      }}
-                    />
-                  </div>
+                    Forgot password?
+                  </h1>
+                  <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6 }}>
+                    Enter your email and we'll send you a one-time code.
+                  </p>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: 8, padding: '12.5px 0', borderRadius: 12,
-                    fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.01em',
-                    color: 'white', border: 'none',
-                    cursor: loading ? 'default' : 'pointer',
-                    background: '#2563EB',
-                    boxShadow: '0 4px 16px rgba(37,99,235,0.35)',
-                    transition: 'background 0.18s, box-shadow 0.18s',
-                  }}
-                  onMouseEnter={e => {
-                    if (!loading) {
-                      (e.currentTarget as HTMLButtonElement).style.background = '#1D4ED8';
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 6px 22px rgba(37,99,235,0.45)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!loading) {
-                      (e.currentTarget as HTMLButtonElement).style.background = '#2563EB';
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 4px 16px rgba(37,99,235,0.35)';
-                    }
-                  }}
-                >
-                  {loading ? (
-                    <>
-                      <div style={{
-                        width: 16, height: 16, borderRadius: '50%',
-                        border: '2px solid rgba(255,255,255,0.3)',
-                        borderTopColor: 'white',
-                        animation: 'fp-spin 0.7s linear infinite',
-                      }} />
-                      Sending...
-                    </>
-                  ) : (
-                    <>Send Reset Link <ArrowRight size={15} /></>
-                  )}
-                </button>
-              </form>
+                <form onSubmit={handleSendOtp}>
+                  <div style={{ marginBottom: 22 }}>
+                    <label style={{
+                      display: 'block', fontSize: 11, fontWeight: 600,
+                      letterSpacing: '0.07em', textTransform: 'uppercase',
+                      color: '#374151', marginBottom: 8,
+                    }}>
+                      Email Address
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Mail size={14} style={{
+                        position: 'absolute', left: 13, top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#9CA3AF', pointerEvents: 'none',
+                      }}/>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        onFocus={onFocus}
+                        onBlur={onBlur}
+                        placeholder="Email"
+                        required
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          padding: '11px 14px 11px 38px',
+                          borderRadius: 12, fontSize: 14,
+                          border: '1.5px solid #E2E8F0',
+                          background: 'white', color: '#0F172A',
+                          outline: 'none',
+                          transition: 'border-color 0.15s, box-shadow 0.15s',
+                        }}
+                      />
+                    </div>
+                  </div>
 
-              <button
-                onClick={() => navigate('/login')}
-                style={{
-                  marginTop: 22, display: 'flex', alignItems: 'center',
-                  gap: 6, fontSize: 13, fontWeight: 500, color: '#64748B',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  padding: 0, transition: 'color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#2563EB')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      width: '100%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 8, padding: '12.5px 0', borderRadius: 12,
+                      fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.01em',
+                      color: 'white', border: 'none',
+                      cursor: loading ? 'default' : 'pointer',
+                      background: 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)',
+                      boxShadow: '0 4px 16px rgba(10,108,203,0.35)',
+                      transition: 'background 0.18s, box-shadow 0.18s',
+                    }}
+                    onMouseEnter={e => { if (!loading) { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 22px rgba(10,108,203,0.45)'; } }}
+                    onMouseLeave={e => { if (!loading) { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px rgba(10,108,203,0.35)'; } }}
+                  >
+                    {loading ? (
+                      <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'fp-spin 0.7s linear infinite' }}/> Sending OTP...</>
+                    ) : (
+                      <>Send OTP <ArrowRight size={15}/></>
+                    )}
+                  </button>
+                </form>
+
+                <button
+                  onClick={() => navigate('/login')}
+                  style={{
+                    marginTop: 22, display: 'flex', alignItems: 'center',
+                    gap: 6, fontSize: 13, fontWeight: 500, color: '#64748B',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 0, transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#2563EB')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+                >
+                  <ArrowLeft size={14}/> Back to Sign In
+                </button>
+              </motion.div>
+            )}
+
+            {/* ── Step 2: Enter OTP ── */}
+            {step === 'otp' && (
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
               >
-                <ArrowLeft size={14} /> Back to Sign In
-              </button>
-            </>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.35 }}
-              style={{ textAlign: 'center', paddingTop: 16 }}
-            >
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%',
-                background: '#ECFDF5', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 20px',
-              }}>
-                <CheckCircle size={30} style={{ color: '#10B981' }} />
-              </div>
-              <h2 style={{
-                fontSize: 22, fontWeight: 800, color: '#0F172A',
-                marginBottom: 10, letterSpacing: '-0.03em',
-              }}>
-                Check your inbox
-              </h2>
-              <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, marginBottom: 28 }}>
-                We've sent a password reset link to<br />
-                <strong style={{ color: '#0F172A' }}>{email}</strong>
-              </p>
-              <button
-                onClick={() => navigate('/login')}
-                style={{
-                  width: '100%', padding: '12px 0', borderRadius: 12,
-                  fontSize: 14, fontWeight: 600, color: '#2563EB',
-                  background: '#EFF6FF', border: 'none', cursor: 'pointer',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#DBEAFE')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#EFF6FF')}
+                <div style={{ marginBottom: 28 }}>
+                  <h1 style={{
+                    fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
+                    color: '#0F172A', marginBottom: 6,
+                  }}>
+                    Enter OTP
+                  </h1>
+                  <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6 }}>
+                    We sent a 6-digit code to<br/>
+                    <strong style={{ color: '#0F172A' }}>{email}</strong>
+                  </p>
+                </div>
+
+                <form onSubmit={handleVerifyOtp}>
+                  {/* OTP boxes */}
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 8, justifyContent: 'space-between' }} onPaste={handleOtpPaste}>
+                    {otp.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={el => { inputRefs.current[i] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={e => handleOtpChange(i, e.target.value)}
+                        onKeyDown={e => handleOtpKeyDown(i, e)}
+                        onFocus={e => {
+                          e.target.style.borderColor = '#2563EB';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.13)';
+                        }}
+                        onBlur={e => {
+                          e.target.style.borderColor = otpError ? '#EF4444' : '#E2E8F0';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        style={{
+                          width: 46, height: 52,
+                          textAlign: 'center', fontSize: 20, fontWeight: 700,
+                          borderRadius: 12, outline: 'none',
+                          border: `1.5px solid ${otpError ? '#EF4444' : '#E2E8F0'}`,
+                          background: 'white', color: '#0F172A',
+                          transition: 'border-color 0.15s, box-shadow 0.15s',
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {otpError && (
+                    <p style={{ fontSize: 12, color: '#EF4444', marginBottom: 12 }}>
+                      Invalid OTP. Please try again.
+                    </p>
+                  )}
+
+                  {/* Resend */}
+                  <div style={{ textAlign: 'right', marginBottom: 22 }}>
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendCooldown > 0}
+                      style={{
+                        fontSize: 13, fontWeight: 500,
+                        color: resendCooldown > 0 ? '#94A3B8' : '#2563EB',
+                        background: 'none', border: 'none',
+                        cursor: resendCooldown > 0 ? 'default' : 'pointer',
+                        padding: 0, transition: 'color 0.15s',
+                      }}
+                    >
+                      {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+                    </button>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || otp.join('').length < OTP_LENGTH}
+                    style={{
+                      width: '100%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 8, padding: '12.5px 0', borderRadius: 12,
+                      fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.01em',
+                      color: 'white', border: 'none',
+                      cursor: (loading || otp.join('').length < OTP_LENGTH) ? 'default' : 'pointer',
+                      background: otp.join('').length < OTP_LENGTH ? 'linear-gradient(to bottom right, #7ab8e8, #94cce8, #b8e3f5)' : 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)',
+                      boxShadow: '0 4px 16px rgba(37,99,235,0.25)',
+                      transition: 'background 0.18s, box-shadow 0.18s',
+                    }}
+                    onMouseEnter={e => { if (!loading && otp.join('').length === OTP_LENGTH) { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)'; } }}
+                    onMouseLeave={e => { if (otp.join('').length === OTP_LENGTH) { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)'; } }}
+                  >
+                    {loading ? (
+                      <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'fp-spin 0.7s linear infinite' }}/> Verifying...</>
+                    ) : (
+                      <>Verify OTP <ArrowRight size={15}/></>
+                    )}
+                  </button>
+                </form>
+
+                <button
+                  onClick={() => { setStep('email'); setOtp(Array(OTP_LENGTH).fill('')); setOtpError(false); }}
+                  style={{
+                    marginTop: 20, display: 'flex', alignItems: 'center',
+                    gap: 6, fontSize: 13, fontWeight: 500, color: '#64748B',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 0, transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#2563EB')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+                >
+                  <ArrowLeft size={14}/> Change email
+                </button>
+              </motion.div>
+            )}
+
+            {/* ── Step 3: Success ── */}
+            {step === 'done' && (
+              <motion.div
+                key="done"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.35 }}
+                style={{ textAlign: 'center', paddingTop: 16 }}
               >
-                Back to Sign In
-              </button>
-            </motion.div>
-          )}
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: '#ECFDF5', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 20px',
+                }}>
+                  <CheckCircle size={30} style={{ color: '#10B981' }}/>
+                </div>
+                <h2 style={{
+                  fontSize: 22, fontWeight: 800, color: '#0F172A',
+                  marginBottom: 10, letterSpacing: '-0.03em',
+                }}>
+                  Identity verified!
+                </h2>
+                <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, marginBottom: 28 }}>
+                  Your OTP was verified successfully.<br/>You can now sign in to your account.
+                </p>
+                <button
+                  onClick={() => navigate('/login')}
+                  style={{
+                    width: '100%', padding: '12.5px 0', borderRadius: 12,
+                    fontSize: 14.5, fontWeight: 600, color: 'white',
+                    background: 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)', border: 'none', cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(10,108,203,0.35)',
+                    transition: 'background 0.18s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)')}
+                >
+                  Back to Sign In
+                </button>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
         </motion.div>
       </div>
 
