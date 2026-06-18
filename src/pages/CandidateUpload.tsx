@@ -604,7 +604,7 @@ export function CandidateUpload() {
                           <td className="px-4 py-3">
                             <button
                               onClick={() => navigate(`/dashboard/candidates/${getRatingCandId(r)}?jd_id=${selectedJD.id}`)}
-                              className="flex items-center gap-1.5 text-xs text-white font-medium px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                              className="flex items-center gap-1.5 text-xs text-white font-medium px-3 py-1.5 rounded-lg btn-gradient transition-colors"
                             >
                               <Eye size={12} /> View
                             </button>

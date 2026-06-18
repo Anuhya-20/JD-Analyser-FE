@@ -27,7 +27,7 @@ export function Button({
         variant === 'secondary' && 'bg-primary-50 text-primary-700 hover:bg-primary-100',
         variant === 'outline' && 'border border-border text-text-primary hover:bg-gray-50',
         variant === 'ghost' && 'text-text-secondary hover:bg-gray-100',
-        variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700',
+        variant === 'danger' && 'btn-gradient text-white',
         className
       )}
       disabled={disabled || loading}
