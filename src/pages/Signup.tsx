@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap, User } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-const loginSchema = z.object({
+const signupSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.email('Enter a valid email address'),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^[A-Z]/, 'Password must start with a capital letter')
     .regex(/[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/, 'Password must contain at least one special character'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type SignupForm = z.infer<typeof signupSchema>;
 
 function OrbArt() {
   return (
@@ -50,45 +55,47 @@ function OrbArt() {
   );
 }
 
-export function Login() {
+export function Signup() {
   const navigate = useNavigate();
-  const [showPass, setShowPass] = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [showPass,    setShowPass]    = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [apiError,    setApiError]    = useState('');
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema),
     mode: 'onTouched',
   });
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: SignupForm) => {
+    setApiError('');
     setLoading(true);
-    setApiError(null);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api/v1/auth/login`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: data.email, password: data.password }),
-        }
-      );
+      const res = await fetch('http://127.0.0.1:8000/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          full_name: data.fullName,
+          password: data.password,
+          confirm_password: data.confirmPassword,
+        }),
+      });
+      const body = await res.json();
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.detail ?? body?.message ?? 'Invalid credentials');
+        const msg = body?.detail?.[0]?.msg || body?.detail || 'Registration failed. Please try again.';
+        setApiError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        return;
       }
       localStorage.setItem('talentiq_auth', 'true');
-      const existing = localStorage.getItem('talentiq_user');
-      if (!existing) {
-        localStorage.setItem('talentiq_user', JSON.stringify({ full_name: '', email: data.email }));
-      }
+      localStorage.setItem('talentiq_user', JSON.stringify({ full_name: data.fullName, email: data.email }));
       navigate('/dashboard');
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Login failed');
+    } catch {
+      setApiError('Unable to connect to the server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,13 +106,15 @@ export function Login() {
     e.target.style.boxShadow   = '0 0 0 3px rgba(37,99,235,0.13)';
   };
 
-  const emailField    = register('email');
-  const passwordField = register('password');
+  const fullNameField       = register('fullName');
+  const emailField          = register('email');
+  const passwordField       = register('password');
+  const confirmPasswordField = register('confirmPassword');
 
   return (
     <div className="h-screen overflow-hidden flex antialiased" style={{ fontFamily: "'Poppins', sans-serif" }}>
 
-      {/* LEFT — blue hero */}
+      {/* LEFT — blue hero panel */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col p-12 relative overflow-hidden"
         style={{ background: 'linear-gradient(155deg, #1E3A8A 0%, #1E40AF 55%, #1A365D 100%)' }}
@@ -183,9 +192,9 @@ export function Login() {
         </motion.div>
       </div>
 
-      {/* RIGHT — form panel */}
+      {/* RIGHT — white form panel */}
       <div
-        className="flex-1 lg:w-1/2 flex items-center justify-center p-8 sm:p-14"
+        className="flex-1 lg:w-1/2 flex items-center justify-center p-6 sm:p-8"
         style={{ backgroundColor: '#F8FAFC' }}
       >
         <motion.div
@@ -202,28 +211,67 @@ export function Login() {
             />
           </div>
 
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 20 }}>
             <h1 style={{
               fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
               color: '#0F172A', marginBottom: 6,
             }}>
-              Welcome back
+              Create your account
             </h1>
             <p style={{ fontSize: 14, color: '#64748B' }}>
-              Sign in to your recruitment dashboard
+              Start hiring smarter today
             </p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)}>
 
-            {/* Email */}
-            <div style={{ marginBottom: 18 }}>
+            {/* Full Name */}
+            <div style={{ marginBottom: 13 }}>
               <label style={{
                 display: 'block', fontSize: 11, fontWeight: 600,
                 letterSpacing: '0.07em', textTransform: 'uppercase',
                 color: '#374151', marginBottom: 8,
               }}>
-                Email Address
+                Full Name
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User size={14} style={{
+                  position: 'absolute', left: 13, top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: errors.fullName ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
+                }}/>
+                <input
+                  {...fullNameField}
+                  type="text"
+                  onFocus={onFocus}
+                  onBlur={e => { fullNameField.onBlur(e); e.target.style.borderColor = errors.fullName ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  placeholder="Jane Smith"
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '11px 14px 11px 38px',
+                    borderRadius: 12, fontSize: 14,
+                    border: `1.5px solid ${errors.fullName ? '#EF4444' : '#E2E8F0'}`,
+                    background: 'white', color: '#0F172A',
+                    outline: 'none',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                />
+              </div>
+              {errors.fullName && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.fullName.message}
+                </p>
+              )}
+            </div>
+
+            {/* Email */}
+            <div style={{ marginBottom: 13 }}>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#374151', marginBottom: 8,
+              }}>
+                Work Email
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail size={14} style={{
@@ -256,30 +304,14 @@ export function Login() {
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: 26 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{
-                  fontSize: 11, fontWeight: 600,
-                  letterSpacing: '0.07em', textTransform: 'uppercase',
-                  color: '#374151',
-                }}>
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => navigate('/forgot-password')}
-                  style={{
-                    fontSize: 12.5, fontWeight: 500, color: '#2563EB',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', padding: 0,
-                    transition: 'color 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#1D4ED8')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#2563EB')}
-                >
-                  Forgot password?
-                </button>
-              </div>
+            <div style={{ marginBottom: 13 }}>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#374151', marginBottom: 8,
+              }}>
+                Password
+              </label>
               <div style={{ position: 'relative' }}>
                 <Lock size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
@@ -291,7 +323,7 @@ export function Login() {
                   type={showPass ? 'text' : 'password'}
                   onFocus={onFocus}
                   onBlur={e => { passwordField.onBlur(e); e.target.style.borderColor = errors.password ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 40px 11px 38px',
@@ -326,18 +358,73 @@ export function Login() {
               )}
             </div>
 
+            {/* Confirm Password */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#374151', marginBottom: 8,
+              }}>
+                Confirm Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={14} style={{
+                  position: 'absolute', left: 13, top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: errors.confirmPassword ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
+                }}/>
+                <input
+                  {...confirmPasswordField}
+                  type={showConfirm ? 'text' : 'password'}
+                  onFocus={onFocus}
+                  onBlur={e => { confirmPasswordField.onBlur(e); e.target.style.borderColor = errors.confirmPassword ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  placeholder="Re-enter your password"
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '11px 40px 11px 38px',
+                    borderRadius: 12, fontSize: 14,
+                    border: `1.5px solid ${errors.confirmPassword ? '#EF4444' : '#E2E8F0'}`,
+                    background: 'white', color: '#0F172A',
+                    outline: 'none',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(v => !v)}
+                  style={{
+                    position: 'absolute', right: 13, top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none', border: 'none',
+                    cursor: 'pointer', padding: 2,
+                    display: 'flex', color: '#9CA3AF',
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#4B5563')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
+                >
+                  {showConfirm ? <EyeOff size={15}/> : <Eye size={15}/>}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
+
             {/* API error */}
             {apiError && (
-              <p style={{
-                marginBottom: 16, fontSize: 13, color: '#DC2626',
+              <div style={{
+                marginBottom: 14, padding: '10px 14px', borderRadius: 10,
                 background: '#FEF2F2', border: '1px solid #FECACA',
-                borderRadius: 10, padding: '10px 14px',
+                fontSize: 13, color: '#DC2626',
               }}>
                 {apiError}
-              </p>
+              </div>
             )}
 
-            {/* Sign In */}
+            {/* Create Account */}
             <button
               type="submit"
               disabled={loading}
@@ -354,14 +441,14 @@ export function Login() {
               }}
               onMouseEnter={e => {
                 if (!loading) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 6px 22px rgba(10,108,203,0.45)';
+                  (e.currentTarget as HTMLButtonElement).style.background  = 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow   = '0 6px 22px rgba(10,108,203,0.45)';
                 }
               }}
               onMouseLeave={e => {
                 if (!loading) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 4px 16px rgba(10,108,203,0.35)';
+                  (e.currentTarget as HTMLButtonElement).style.background  = 'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow   = '0 4px 16px rgba(10,108,203,0.35)';
                 }
               }}
             >
@@ -373,18 +460,18 @@ export function Login() {
                     borderTopColor: 'white',
                     animation: 'tiq-spin 0.7s linear infinite',
                   }}/>
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                <>Sign In <ArrowRight size={15}/></>
+                <>Create Account <ArrowRight size={15}/></>
               )}
             </button>
 
             <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13.5, color: '#64748B' }}>
-              Don&apos;t have an account?{' '}
+              Already have an account?{' '}
               <button
                 type="button"
-                onClick={() => navigate('/signup')}
+                onClick={() => navigate('/login')}
                 style={{
                   fontWeight: 600, color: '#2563EB',
                   background: 'none', border: 'none',
@@ -394,7 +481,7 @@ export function Login() {
                 onMouseEnter={e => (e.currentTarget.style.color = '#1D4ED8')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#2563EB')}
               >
-                Sign up
+                Sign in
               </button>
             </p>
           </form>

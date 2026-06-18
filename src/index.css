@@ -34,6 +34,13 @@
   }
 }
 
+.btn-gradient {
+  background: linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5) !important;
+}
+.btn-gradient:hover:not(:disabled) {
+  background: linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0) !important;
+}
+
 /* Smooth transitions */
 * {
   transition-property: color, background-color, border-color, box-shadow;

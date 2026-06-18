@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, FileText, Users, Brain,
@@ -17,9 +17,32 @@ const navItems = [
   { label: 'Reports', icon: BarChart3, path: '/dashboard/reports' },
 ];
 
+function getUserInitials(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'U';
+}
+
+function nameFromEmail(email: string) {
+  return email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('talentiq_user');
+    if (raw) {
+      const u = JSON.parse(raw) as { full_name: string; email: string };
+      return { full_name: u.full_name || nameFromEmail(u.email), email: u.email };
+    }
+  } catch {}
+  return { full_name: '', email: '' };
+}
+
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [popupOpen, setPopupOpen] = useState(false);
+  const user = getStoredUser();
+  const displayName = user.full_name || user.email || 'User';
+  const initials = getUserInitials(displayName);
 
   return (
     <aside className="w-64 bg-white border-r border-border flex flex-col fixed left-0 top-16 bottom-0 z-30">
@@ -62,13 +85,18 @@ export function Sidebar() {
                 className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden"
               >
                 <div className="px-4 py-3 border-b border-border">
-                  <p className="text-sm font-semibold text-text-primary">Niharika B.</p>
-                  <p className="text-xs text-text-secondary">Niharika.Bandila@bilvantis.io</p>
+                  <p className="text-sm font-semibold text-text-primary">{displayName}</p>
+                  <p className="text-xs text-text-secondary">{user.email}</p>
                 </div>
                 <div className="p-2">
                   <button
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                    onClick={() => setPopupOpen(false)}
+                    onClick={() => {
+                      localStorage.removeItem('talentiq_auth');
+                      localStorage.removeItem('talentiq_user');
+                      setPopupOpen(false);
+                      navigate('/login');
+                    }}
                   >
                     <LogOut size={15} />
                     <span>Log out</span>
@@ -86,10 +114,10 @@ export function Sidebar() {
           )}
           onClick={() => setPopupOpen(v => !v)}
         >
-          <Avatar initials="NB" size="sm" />
+          <Avatar initials={initials} size="sm" />
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-semibold text-text-primary truncate">Niharika B.</p>
-            <p className="text-xs text-text-secondary truncate">Niharika.Bandila@bilvantis.io</p>
+            <p className="text-sm font-semibold text-text-primary truncate">{displayName}</p>
+            <p className="text-xs text-text-secondary truncate">{user.email}</p>
           </div>
         </button>
       </div>
