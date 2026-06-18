@@ -68,20 +68,34 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'}/api/v1/auth/login`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail ?? data?.message ?? 'Invalid credentials');
+      }
+      const data = await res.json();
       localStorage.setItem('talentiq_auth', 'true');
+      if (data?.access_token) localStorage.setItem('talentiq_auth_token', data.access_token);
       navigate('/dashboard');
-    }, 1400);
-  };
-
-  const handleSSO = () => {
-    localStorage.setItem('talentiq_auth', 'true');
-    navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* Blue focus ring on inputs */
@@ -337,6 +351,17 @@ export function Login() {
                 </button>
               </div>
             </div>
+
+            {/* Error */}
+            {error && (
+              <p style={{
+                marginBottom: 16, fontSize: 13, color: '#DC2626',
+                background: '#FEF2F2', border: '1px solid #FECACA',
+                borderRadius: 10, padding: '10px 14px',
+              }}>
+                {error}
+              </p>
+            )}
 
             {/* Sign In */}
             <button
