@@ -1,12 +1,15 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001';
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001';
+
+export function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('talentiq_auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('talentiq_auth_token');
-
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...authHeaders(),
       ...options?.headers,
     },
     ...options,

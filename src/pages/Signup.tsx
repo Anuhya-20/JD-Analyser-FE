@@ -2,6 +2,24 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap, User } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const signupSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.email('Enter a valid email address'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/^[A-Z]/, 'Password must start with a capital letter')
+    .regex(/[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/, 'Password must contain at least one special character'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+type SignupForm = z.infer<typeof signupSchema>;
 
 function OrbArt() {
   return (
@@ -39,39 +57,42 @@ function OrbArt() {
 
 export function Signup() {
   const navigate = useNavigate();
-  const [fullName,       setFullName]       = useState('');
-  const [email,          setEmail]          = useState('');
-  const [password,       setPassword]       = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPass,       setShowPass]       = useState(false);
-  const [showConfirm,    setShowConfirm]    = useState(false);
-  const [loading,        setLoading]        = useState(false);
-  const [confirmError,   setConfirmError]   = useState(false);
-  const [apiError,       setApiError]       = useState('');
+  const [showPass,    setShowPass]    = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [apiError,    setApiError]    = useState('');
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      setConfirmError(true);
-      return;
-    }
-    setConfirmError(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema),
+    mode: 'onTouched',
+  });
+
+  const onSubmit = async (data: SignupForm) => {
     setApiError('');
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/auth/register', {
+      const res = await fetch('http://127.0.0.1:8001/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
-        body: JSON.stringify({ email, full_name: fullName, password, confirm_password: confirmPassword }),
+        body: JSON.stringify({
+          email: data.email,
+          full_name: data.fullName,
+          password: data.password,
+          confirm_password: data.confirmPassword,
+        }),
       });
-      const data = await res.json();
+      const body = await res.json();
       if (!res.ok) {
-        const msg = data?.detail?.[0]?.msg || data?.detail || 'Registration failed. Please try again.';
+        const msg = body?.detail?.[0]?.msg || body?.detail || 'Registration failed. Please try again.';
         setApiError(typeof msg === 'string' ? msg : JSON.stringify(msg));
         return;
       }
       localStorage.setItem('talentiq_auth', 'true');
-      localStorage.setItem('talentiq_user', JSON.stringify({ full_name: fullName, email }));
+      localStorage.setItem('talentiq_user', JSON.stringify({ full_name: data.fullName, email: data.email }));
       navigate('/dashboard');
     } catch {
       setApiError('Unable to connect to the server. Please try again.');
@@ -84,33 +105,28 @@ export function Signup() {
     e.target.style.borderColor = '#2563EB';
     e.target.style.boxShadow   = '0 0 0 3px rgba(37,99,235,0.13)';
   };
-  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#E2E8F0';
-    e.target.style.boxShadow   = 'none';
-  };
+
+  const fullNameField       = register('fullName');
+  const emailField          = register('email');
+  const passwordField       = register('password');
+  const confirmPasswordField = register('confirmPassword');
 
   return (
     <div className="h-screen overflow-hidden flex antialiased" style={{ fontFamily: "'Poppins', sans-serif" }}>
 
-      {/* ════════════════════════════════════════════
-          LEFT — blue hero panel
-      ════════════════════════════════════════════ */}
+      {/* LEFT — blue hero panel */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col p-12 relative overflow-hidden"
         style={{ background: 'linear-gradient(155deg, #1E3A8A 0%, #1E40AF 55%, #1A365D 100%)' }}
       >
-        {/* Dot-grid texture */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}/>
-
-        {/* Centre glow */}
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255,255,255,0.05) 0%, transparent 70%)',
         }}/>
 
-        {/* Logo */}
         <div className="relative z-10">
           <img
             src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
@@ -119,7 +135,6 @@ export function Signup() {
           />
         </div>
 
-        {/* Hero */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
@@ -145,21 +160,16 @@ export function Signup() {
             </p>
             <h2 style={{
               fontSize: 33, fontWeight: 800, lineHeight: 1.14,
-              letterSpacing: '-0.03em', marginBottom: 14,
-              color: 'white',
+              letterSpacing: '-0.03em', marginBottom: 14, color: 'white',
             }}>
               Find the right hire.<br/>Not just any hire.
             </h2>
-            <p style={{
-              fontSize: 14, lineHeight: 1.65, maxWidth: 295,
-              color: 'rgba(255,255,255,0.42)',
-            }}>
+            <p style={{ fontSize: 14, lineHeight: 1.65, maxWidth: 295, color: 'rgba(255,255,255,0.42)' }}>
               Intelligent candidate screening that surfaces real talent &mdash; in seconds, not weeks.
             </p>
           </motion.div>
         </div>
 
-        {/* Trust strip */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -182,9 +192,7 @@ export function Signup() {
         </motion.div>
       </div>
 
-      {/* ════════════════════════════════════════════
-          RIGHT — white form panel
-      ════════════════════════════════════════════ */}
+      {/* RIGHT — white form panel */}
       <div
         className="flex-1 lg:w-1/2 flex items-center justify-center p-6 sm:p-8"
         style={{ backgroundColor: '#F8FAFC' }}
@@ -195,8 +203,6 @@ export function Signup() {
           transition={{ duration: 0.48 }}
           style={{ width: '100%', maxWidth: 360 }}
         >
-
-          {/* Mobile logo */}
           <div className="lg:hidden mb-10">
             <img
               src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
@@ -205,7 +211,6 @@ export function Signup() {
             />
           </div>
 
-          {/* Heading */}
           <div style={{ marginBottom: 20 }}>
             <h1 style={{
               fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
@@ -218,8 +223,7 @@ export function Signup() {
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSignUp}>
+          <form onSubmit={handleSubmit(onSubmit)}>
 
             {/* Full Name */}
             <div style={{ marginBottom: 13 }}>
@@ -234,29 +238,31 @@ export function Signup() {
                 <User size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#9CA3AF', pointerEvents: 'none',
+                  color: errors.fullName ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
                 }}/>
                 <input
+                  {...fullNameField}
                   type="text"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={e => { fullNameField.onBlur(e); e.target.style.borderColor = errors.fullName ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                   placeholder="Jane Smith"
-                  required
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 14px 11px 38px',
                     borderRadius: 12, fontSize: 14,
-                    border: '1.5px solid #E2E8F0',
+                    border: `1.5px solid ${errors.fullName ? '#EF4444' : '#E2E8F0'}`,
                     background: 'white', color: '#0F172A',
                     outline: 'none',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
                   }}
                 />
               </div>
+              {errors.fullName && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.fullName.message}
+                </p>
+              )}
             </div>
-
 
             {/* Email */}
             <div style={{ marginBottom: 13 }}>
@@ -271,27 +277,30 @@ export function Signup() {
                 <Mail size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#9CA3AF', pointerEvents: 'none',
+                  color: errors.email ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
                 }}/>
                 <input
+                  {...emailField}
                   type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={e => { emailField.onBlur(e); e.target.style.borderColor = errors.email ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                   placeholder="Email"
-                  required
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 14px 11px 38px',
                     borderRadius: 12, fontSize: 14,
-                    border: '1.5px solid #E2E8F0',
+                    border: `1.5px solid ${errors.email ? '#EF4444' : '#E2E8F0'}`,
                     background: 'white', color: '#0F172A',
                     outline: 'none',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
                   }}
                 />
               </div>
+              {errors.email && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             {/* Password */}
@@ -307,21 +316,19 @@ export function Signup() {
                 <Lock size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#9CA3AF', pointerEvents: 'none',
+                  color: errors.password ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
                 }}/>
                 <input
+                  {...passwordField}
                   type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={e => { passwordField.onBlur(e); e.target.style.borderColor = errors.password ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                   placeholder="Create a password"
-                  required
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 40px 11px 38px',
                     borderRadius: 12, fontSize: 14,
-                    border: '1.5px solid #E2E8F0',
+                    border: `1.5px solid ${errors.password ? '#EF4444' : '#E2E8F0'}`,
                     background: 'white', color: '#0F172A',
                     outline: 'none',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -344,6 +351,11 @@ export function Signup() {
                   {showPass ? <EyeOff size={15}/> : <Eye size={15}/>}
                 </button>
               </div>
+              {errors.password && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             {/* Confirm Password */}
@@ -359,21 +371,19 @@ export function Signup() {
                 <Lock size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: confirmError ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
+                  color: errors.confirmPassword ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
                 }}/>
                 <input
+                  {...confirmPasswordField}
                   type={showConfirm ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={e => { setConfirmPassword(e.target.value); setConfirmError(false); }}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={e => { confirmPasswordField.onBlur(e); e.target.style.borderColor = errors.confirmPassword ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                   placeholder="Re-enter your password"
-                  required
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 40px 11px 38px',
                     borderRadius: 12, fontSize: 14,
-                    border: `1.5px solid ${confirmError ? '#EF4444' : '#E2E8F0'}`,
+                    border: `1.5px solid ${errors.confirmPassword ? '#EF4444' : '#E2E8F0'}`,
                     background: 'white', color: '#0F172A',
                     outline: 'none',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -396,9 +406,9 @@ export function Signup() {
                   {showConfirm ? <EyeOff size={15}/> : <Eye size={15}/>}
                 </button>
               </div>
-              {confirmError && (
+              {errors.confirmPassword && (
                 <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
-                  Passwords do not match.
+                  {errors.confirmPassword.message}
                 </p>
               )}
             </div>
@@ -457,7 +467,6 @@ export function Signup() {
               )}
             </button>
 
-            {/* Sign in link */}
             <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13.5, color: '#64748B' }}>
               Already have an account?{' '}
               <button

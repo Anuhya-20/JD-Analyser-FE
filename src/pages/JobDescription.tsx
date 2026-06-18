@@ -1,15 +1,24 @@
-﻿import { useState, useCallback } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 import {
   Upload, FileText, Brain, CheckCircle2, X,
-  Briefcase, GraduationCap, Award, Clock, ChevronRight, Eye,
+  Briefcase, GraduationCap, Award, Clock, ChevronRight, Eye, Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { mockJobs } from '@/data/mockData';
+import { BASE_URL, authHeaders } from '@/lib/api';
+
+interface Job {
+  id: string;
+  title: string;
+  company_name?: string;
+  status?: string;
+  is_active?: boolean;
+  candidates_count?: number;
+}
 
 const requiredSkills = ['React', 'Python', 'AWS', 'PostgreSQL', 'Docker', 'TypeScript', 'Node.js'];
 const preferredSkills = ['Kubernetes', 'GraphQL', 'Redis', 'Terraform', 'CI/CD'];
@@ -17,13 +26,37 @@ const preferredSkills = ['Kubernetes', 'GraphQL', 'Redis', 'Terraform', 'CI/CD']
 export function JobDescription() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<'upload' | 'paste'>('upload');
+  const [jobTitle, setJobTitle] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [pastedText, setPastedText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeJobs, setActiveJobs] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(mockJobs.map(j => [j.id, j.status === 'Active']))
-  );
+  const [error, setError] = useState<string | null>(null);
+
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+  const [activeJobs, setActiveJobs] = useState<Record<string, boolean>>({});
+
+  const fetchJobs = useCallback(async () => {
+    setJobsLoading(true);
+    setJobsError(null);
+    try {
+      const res = await fetch(`${BASE_URL}/api/v1/jobs?active_only=false&page=1&page_size=50`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      const list: Job[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+      setJobs(list);
+      setActiveJobs(Object.fromEntries(list.map(j => [j.id, j.is_active ?? j.status === 'Active'])));
+    } catch (err) {
+      setJobsError(err instanceof Error ? err.message : 'Failed to load jobs');
+    } finally {
+      setJobsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) setFile(accepted[0]);
@@ -35,9 +68,38 @@ export function JobDescription() {
     maxFiles: 1,
   });
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     setAnalyzing(true);
-    setTimeout(() => { setAnalyzing(false); setAnalyzed(true); }, 2000);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('title', jobTitle.trim());
+      if (companyName.trim()) formData.append('company_name', companyName.trim());
+
+      if (mode === 'upload' && file) {
+        formData.append('file', file);
+      } else if (mode === 'paste' && pastedText.trim()) {
+        formData.append('description_text', pastedText.trim());
+      }
+
+      const res = await fetch(`${BASE_URL}/api/v1/jobs`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Error ${res.status}`);
+      }
+
+      setAnalyzed(true);
+      fetchJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -50,6 +112,33 @@ export function JobDescription() {
       {/* Upload Area */}
       <Card>
         <CardHeader>
+          {/* Job Title + Company */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary uppercase tracking-wide mb-1.5">
+                Job Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={jobTitle}
+                onChange={e => setJobTitle(e.target.value)}
+                placeholder="e.g. Senior Full Stack Developer"
+                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary uppercase tracking-wide mb-1.5">
+                Company Name
+              </label>
+              <input
+                type="text"
+                value={companyName}
+                onChange={e => setCompanyName(e.target.value)}
+                placeholder="e.g. Bilvantis"
+                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg border border-border p-1 bg-gray-50">
               <button
@@ -113,11 +202,15 @@ export function JobDescription() {
             />
           )}
 
+          {error && (
+            <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+          )}
+
           <div className="mt-4 flex justify-end">
             <Button
               onClick={handleAnalyze}
               loading={analyzing}
-              disabled={!file && !pastedText.trim()}
+              disabled={!jobTitle.trim() || (!file && !pastedText.trim())}
               size="lg"
               className="gap-2"
             >
@@ -237,48 +330,61 @@ export function JobDescription() {
           <CardTitle>Existing Job Descriptions</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {mockJobs.map((job, i) => (
-            <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-gray-50 transition-colors">
-              <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Briefcase size={18} className="text-primary-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-text-primary">{job.title}</p>
-                <p className="text-xs text-text-secondary">{job.company} &middot; {job.candidates} candidates</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveJobs(prev => ({ ...prev, [job.id]: !prev[job.id] }))}
-                  className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
-                    activeJobs[job.id] ? 'bg-primary-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-                      activeJobs[job.id] ? 'translate-x-4' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-                <span className={`text-xs font-medium w-12 ${activeJobs[job.id] ? 'text-primary-600' : 'text-gray-400'}`}>
-                  {activeJobs[job.id] ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <button
-                onClick={() => navigate(`/dashboard/jobs/${job.id}`)}
-                className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-all"
-              >
-                <FileText size={12} />
-                View JD
-              </button>
-              <button
-                onClick={() => navigate('/dashboard/rankings')}
-                className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-all"
-              >
-                <Eye size={12} />
-                View Results
-              </button>
+          {jobsLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-text-secondary text-sm">
+              <Loader2 size={16} className="animate-spin" /> Loading jobs...
             </div>
-          ))}
+          ) : jobsError ? (
+            <p className="text-center py-10 text-sm text-red-500">{jobsError}</p>
+          ) : jobs.length === 0 ? (
+            <p className="text-center py-10 text-sm text-text-secondary">No job descriptions found.</p>
+          ) : (
+            jobs.map((job) => (
+              <div key={job.id} className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Briefcase size={18} className="text-primary-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-text-primary">{job.title}</p>
+                  <p className="text-xs text-text-secondary">
+                    {job.company_name ?? '—'}
+                    {job.candidates_count != null ? ` · ${job.candidates_count} candidates` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveJobs(prev => ({ ...prev, [job.id]: !prev[job.id] }))}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
+                      activeJobs[job.id] ? 'bg-primary-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                        activeJobs[job.id] ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-xs font-medium w-12 ${activeJobs[job.id] ? 'text-primary-600' : 'text-gray-400'}`}>
+                    {activeJobs[job.id] ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => navigate(`/dashboard/jobs/${job.id}`)}
+                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                >
+                  <FileText size={12} />
+                  View JD
+                </button>
+                <button
+                  onClick={() => navigate('/dashboard/rankings')}
+                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
+                >
+                  <Eye size={12} />
+                  View Results
+                </button>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

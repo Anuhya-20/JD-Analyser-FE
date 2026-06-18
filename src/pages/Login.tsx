@@ -2,54 +2,45 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
-/* ─────────────────────────────────────────────────────────
-   Minimal concentric-ring SVG illustration
-   Metaphor: precision candidate targeting / AI matching
-───────────────────────────────────────────────────────── */
+const loginSchema = z.object({
+  email: z.email('Enter a valid email address'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/^[A-Z]/, 'Password must start with a capital letter')
+    .regex(/[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/, 'Password must contain at least one special character'),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
+
 function OrbArt() {
   return (
     <svg viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* ── Rings (outermost → innermost) ── */}
       <circle cx="140" cy="140" r="130" stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
       <circle cx="140" cy="140" r="100" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
       <circle cx="140" cy="140" r="70"  stroke="rgba(255,255,255,0.11)" strokeWidth="1.5"/>
       <circle cx="140" cy="140" r="40"  stroke="rgba(255,255,255,0.18)" strokeWidth="1.5"
         fill="rgba(255,255,255,0.025)"/>
-
-      {/* ── Bright arc on inner ring (upper half = "match zone") ── */}
       <path d="M 100 140 A 40 40 0 0 0 180 140"
         stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round"/>
-
-      {/* ── Center glow ── */}
       <circle cx="140" cy="140" r="12" fill="rgba(255,255,255,0.08)"/>
       <circle cx="140" cy="140" r="5"  fill="rgba(255,255,255,0.45)"/>
-
-      {/* ── Mid-ring nodes (r=70, pentagon, from 12 o'clock) ── */}
-      {/* Top — "winner" node, brightest */}
       <circle cx="140" cy="70"  r="5.5" fill="rgba(255,255,255,0.55)"/>
-      {/* 72° */}
       <circle cx="207" cy="118" r="3.5" fill="rgba(255,255,255,0.22)"/>
-      {/* 144° */}
       <circle cx="181" cy="197" r="3.5" fill="rgba(255,255,255,0.18)"/>
-      {/* 216° */}
       <circle cx="99"  cy="197" r="3.5" fill="rgba(255,255,255,0.16)"/>
-      {/* 288° */}
       <circle cx="73"  cy="118" r="3.5" fill="rgba(255,255,255,0.2)"/>
-
-      {/* ── Outer-ring nodes (r=100, cardinal points) ── */}
       <circle cx="140" cy="40"  r="3" fill="rgba(255,255,255,0.11)"/>
       <circle cx="240" cy="140" r="3" fill="rgba(255,255,255,0.11)"/>
       <circle cx="140" cy="240" r="3" fill="rgba(255,255,255,0.09)"/>
       <circle cx="40"  cy="140" r="3" fill="rgba(255,255,255,0.09)"/>
-
-      {/* ── Subtle radial spokes from center → top two mid nodes ── */}
       <line x1="140" y1="140" x2="140" y2="70"
         stroke="rgba(255,255,255,0.07)" strokeWidth="0.9"/>
       <line x1="140" y1="140" x2="207" y2="118"
         stroke="rgba(255,255,255,0.05)" strokeWidth="0.9"/>
-
-      {/* ── Tiny scatter dots for depth ── */}
       <circle cx="188" cy="58"  r="1.8" fill="rgba(255,255,255,0.13)"/>
       <circle cx="248" cy="120" r="1.5" fill="rgba(255,255,255,0.09)"/>
       <circle cx="55"  cy="172" r="1.5" fill="rgba(255,255,255,0.09)"/>
@@ -59,68 +50,74 @@ function OrbArt() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   Login page
-───────────────────────────────────────────────────────── */
 export function Login() {
   const navigate = useNavigate();
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading,  setLoading]  = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const handleSignIn = (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onTouched',
+  });
+
+  const onSubmit = async (data: LoginForm) => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setApiError(null);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'}/api/v1/auth/login`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: data.email, password: data.password }),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.detail ?? body?.message ?? 'Invalid credentials');
+      }
       localStorage.setItem('talentiq_auth', 'true');
       const existing = localStorage.getItem('talentiq_user');
       if (!existing) {
-        localStorage.setItem('talentiq_user', JSON.stringify({ full_name: '', email }));
+        localStorage.setItem('talentiq_user', JSON.stringify({ full_name: '', email: data.email }));
       }
       navigate('/dashboard');
-    }, 1400);
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSSO = () => {
-    localStorage.setItem('talentiq_auth', 'true');
-    navigate('/dashboard');
-  };
-
-  /* Blue focus ring on inputs */
   const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = '#2563EB';
     e.target.style.boxShadow   = '0 0 0 3px rgba(37,99,235,0.13)';
   };
-  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#E2E8F0';
-    e.target.style.boxShadow   = 'none';
-  };
+
+  const emailField    = register('email');
+  const passwordField = register('password');
 
   return (
     <div className="h-screen overflow-hidden flex antialiased" style={{ fontFamily: "'Poppins', sans-serif" }}>
 
-      {/* ════════════════════════════════════════════
-          LEFT — clean blue hero
-      ════════════════════════════════════════════ */}
+      {/* LEFT — blue hero */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col p-12 relative overflow-hidden"
         style={{ background: 'linear-gradient(155deg, #1E3A8A 0%, #1E40AF 55%, #1A365D 100%)' }}
       >
-
-        {/* Dot-grid texture */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}/>
-
-        {/* Centre glow */}
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255,255,255,0.05) 0%, transparent 70%)',
         }}/>
 
-        {/* ── Logo ── */}
         <div className="relative z-10">
           <img
             src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
@@ -129,10 +126,7 @@ export function Login() {
           />
         </div>
 
-        {/* ── Hero (center of panel) ── */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
-
-          {/* Orb illustration */}
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -142,7 +136,6 @@ export function Login() {
             <OrbArt/>
           </motion.div>
 
-          {/* Text block — centered, minimal */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -158,21 +151,16 @@ export function Login() {
             </p>
             <h2 style={{
               fontSize: 33, fontWeight: 800, lineHeight: 1.14,
-              letterSpacing: '-0.03em', marginBottom: 14,
-              color: 'white',
+              letterSpacing: '-0.03em', marginBottom: 14, color: 'white',
             }}>
               Find the right hire.<br/>Not just any hire.
             </h2>
-            <p style={{
-              fontSize: 14, lineHeight: 1.65, maxWidth: 295,
-              color: 'rgba(255,255,255,0.42)',
-            }}>
+            <p style={{ fontSize: 14, lineHeight: 1.65, maxWidth: 295, color: 'rgba(255,255,255,0.42)' }}>
               Intelligent candidate screening that surfaces real talent &mdash; in seconds, not weeks.
             </p>
           </motion.div>
         </div>
 
-        {/* ── Trust strip (bottom) ── */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -195,10 +183,7 @@ export function Login() {
         </motion.div>
       </div>
 
-
-      {/* ════════════════════════════════════════════
-          RIGHT — white form panel
-      ════════════════════════════════════════════ */}
+      {/* RIGHT — form panel */}
       <div
         className="flex-1 lg:w-1/2 flex items-center justify-center p-8 sm:p-14"
         style={{ backgroundColor: '#F8FAFC' }}
@@ -209,8 +194,6 @@ export function Login() {
           transition={{ duration: 0.48 }}
           style={{ width: '100%', maxWidth: 360 }}
         >
-
-          {/* Mobile logo */}
           <div className="lg:hidden mb-10">
             <img
               src="https://storage.googleapis.com/bilvantis-website-buc/bilvantisLogo.svg"
@@ -219,7 +202,6 @@ export function Login() {
             />
           </div>
 
-          {/* Heading */}
           <div style={{ marginBottom: 32 }}>
             <h1 style={{
               fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
@@ -232,8 +214,7 @@ export function Login() {
             </p>
           </div>
 
-          {/* ── Form ── */}
-          <form onSubmit={handleSignIn}>
+          <form onSubmit={handleSubmit(onSubmit)}>
 
             {/* Email */}
             <div style={{ marginBottom: 18 }}>
@@ -248,35 +229,35 @@ export function Login() {
                 <Mail size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#9CA3AF', pointerEvents: 'none',
+                  color: errors.email ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
                 }}/>
                 <input
+                  {...emailField}
                   type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={e => { emailField.onBlur(e); e.target.style.borderColor = errors.email ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                   placeholder="Email"
-                  required
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 14px 11px 38px',
                     borderRadius: 12, fontSize: 14,
-                    border: '1.5px solid #E2E8F0',
+                    border: `1.5px solid ${errors.email ? '#EF4444' : '#E2E8F0'}`,
                     background: 'white', color: '#0F172A',
                     outline: 'none',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
                   }}
                 />
               </div>
+              {errors.email && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             {/* Password */}
             <div style={{ marginBottom: 26 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', marginBottom: 8,
-              }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <label style={{
                   fontSize: 11, fontWeight: 600,
                   letterSpacing: '0.07em', textTransform: 'uppercase',
@@ -303,21 +284,19 @@ export function Login() {
                 <Lock size={14} style={{
                   position: 'absolute', left: 13, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#9CA3AF', pointerEvents: 'none',
+                  color: errors.password ? '#EF4444' : '#9CA3AF', pointerEvents: 'none',
                 }}/>
                 <input
+                  {...passwordField}
                   type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={e => { passwordField.onBlur(e); e.target.style.borderColor = errors.password ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                   placeholder="Enter your password"
-                  required
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '11px 40px 11px 38px',
                     borderRadius: 12, fontSize: 14,
-                    border: '1.5px solid #E2E8F0',
+                    border: `1.5px solid ${errors.password ? '#EF4444' : '#E2E8F0'}`,
                     background: 'white', color: '#0F172A',
                     outline: 'none',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -340,7 +319,23 @@ export function Login() {
                   {showPass ? <EyeOff size={15}/> : <Eye size={15}/>}
                 </button>
               </div>
+              {errors.password && (
+                <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>
+                  {errors.password.message}
+                </p>
+              )}
             </div>
+
+            {/* API error */}
+            {apiError && (
+              <p style={{
+                marginBottom: 16, fontSize: 13, color: '#DC2626',
+                background: '#FEF2F2', border: '1px solid #FECACA',
+                borderRadius: 10, padding: '10px 14px',
+              }}>
+                {apiError}
+              </p>
+            )}
 
             {/* Sign In */}
             <button
@@ -385,8 +380,6 @@ export function Login() {
               )}
             </button>
 
-
-            {/* Sign up link */}
             <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13.5, color: '#64748B' }}>
               Don&apos;t have an account?{' '}
               <button
