@@ -31,6 +31,10 @@ export default {
       fontFamily: {
         sans: ['Poppins', 'sans-serif'],
       },
+      backgroundImage: {
+        'brand-gradient':       'linear-gradient(to bottom right, #0A6CCB, #1D8AD8, #5CC8F5)',
+        'brand-gradient-hover': 'linear-gradient(to bottom right, #085aaa, #176db0, #3aaee0)',
+      },
       boxShadow: {
         card: '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06)',
         'card-hover': '0 4px 16px 0 rgba(30,58,138,0.10), 0 1px 4px 0 rgba(0,0,0,0.06)',

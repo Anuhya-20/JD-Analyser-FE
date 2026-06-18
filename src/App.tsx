@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 
 import { Layout } from '@/components/layout/Layout';
 import { Login } from '@/pages/Login';
+import { Signup } from '@/pages/Signup';
 import { ForgotPassword } from '@/pages/ForgotPassword';
 import { Dashboard } from '@/pages/Dashboard';
 import { JobDescription } from '@/pages/JobDescription';
@@ -56,6 +57,7 @@ export default function App() {
           }
         />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route

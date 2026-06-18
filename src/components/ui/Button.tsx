@@ -23,7 +23,7 @@ export function Button({
         size === 'sm' && 'px-3 py-1.5 text-sm',
         size === 'md' && 'px-4 py-2 text-sm',
         size === 'lg' && 'px-6 py-3 text-base',
-        variant === 'primary' && 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm',
+        variant === 'primary' && 'btn-gradient text-white shadow-sm',
         variant === 'secondary' && 'bg-primary-50 text-primary-700 hover:bg-primary-100',
         variant === 'outline' && 'border border-border text-text-primary hover:bg-gray-50',
         variant === 'ghost' && 'text-text-secondary hover:bg-gray-100',

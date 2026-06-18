@@ -108,7 +108,7 @@ export function HiringDecisionRoom() {
                     <button
                       onClick={() => decide(c.id, 'interview')}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        decision === 'interview' ? 'bg-blue-500 text-white border-blue-500' : 'border-border text-text-secondary hover:bg-blue-50 hover:text-blue-600'
+                        decision === 'interview' ? 'btn-gradient text-white border-transparent' : 'border-border text-text-secondary hover:bg-blue-50 hover:text-blue-600'
                       }`}
                     >
                       <Calendar size={12} /> Interview
