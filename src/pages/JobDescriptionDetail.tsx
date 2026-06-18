@@ -90,7 +90,7 @@ export function JobDescriptionDetail() {
           <ArrowLeft size={16} />
           Back to Job Descriptions
         </button>
-        <Button onClick={() => navigate('/dashboard/rankings')} className="gap-2">
+        <Button onClick={() => navigate(`/dashboard/candidates?jd_id=${id}&tab=rankings`)} className="gap-2">
           View Match Results
           <ChevronRight size={15} />
         </Button>
@@ -291,7 +291,7 @@ export function JobDescriptionDetail() {
             <Card>
               <CardContent className="pt-4">
                 <button
-                  onClick={() => navigate('/dashboard/rankings')}
+                  onClick={() => navigate(`/dashboard/candidates?jd_id=${id}&tab=rankings`)}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 transition-colors border border-primary-100"
                 >
                   View All Candidate Rankings

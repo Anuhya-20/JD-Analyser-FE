@@ -38,6 +38,7 @@ export function JobDescription() {
   const [jobsLoading, setJobsLoading] = useState(true);
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [activeJobs, setActiveJobs] = useState<Record<string, boolean>>({});
+  const [togglingJobs, setTogglingJobs] = useState<Record<string, boolean>>({});
 
   const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -57,6 +58,23 @@ export function JobDescription() {
   }, []);
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  const toggleActive = async (jobId: string, currentlyActive: boolean) => {
+    setTogglingJobs(prev => ({ ...prev, [jobId]: true }));
+    const endpoint = currentlyActive ? 'deactivate' : 'activate';
+    try {
+      const res = await fetch(`${BASE_URL}/api/v1/jobs/${jobId}/${endpoint}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error();
+      setActiveJobs(prev => ({ ...prev, [jobId]: !currentlyActive }));
+    } catch {
+      // revert on failure — no change needed since we didn't optimistically update
+    } finally {
+      setTogglingJobs(prev => ({ ...prev, [jobId]: false }));
+    }
+  };
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) setFile(accepted[0]);
@@ -215,7 +233,7 @@ export function JobDescription() {
               className="gap-2"
             >
               <Brain size={16} />
-              {analyzing ? 'Analyzing with AI...' : 'Analyze with AI'}
+             Submit
             </Button>
           </div>
         </CardContent>
@@ -352,18 +370,22 @@ export function JobDescription() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setActiveJobs(prev => ({ ...prev, [job.id]: !prev[job.id] }))}
-                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
-                      activeJobs[job.id] ? 'bg-primary-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-                        activeJobs[job.id] ? 'translate-x-4' : 'translate-x-0'
+                  {togglingJobs[job.id] ? (
+                    <Loader2 size={16} className="animate-spin text-text-secondary" />
+                  ) : (
+                    <button
+                      onClick={() => toggleActive(job.id, activeJobs[job.id])}
+                      className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
+                        activeJobs[job.id] ? 'bg-primary-600' : 'bg-gray-300'
                       }`}
-                    />
-                  </button>
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                          activeJobs[job.id] ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  )}
                   <span className={`text-xs font-medium w-12 ${activeJobs[job.id] ? 'text-primary-600' : 'text-gray-400'}`}>
                     {activeJobs[job.id] ? 'Active' : 'Inactive'}
                   </span>
@@ -376,7 +398,7 @@ export function JobDescription() {
                   View JD
                 </button>
                 <button
-                  onClick={() => navigate('/dashboard/rankings')}
+                  onClick={() => navigate(`/dashboard/candidates?jd_id=${job.id}&tab=rankings`)}
                   className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 transition-colors"
                 >
                   <Eye size={12} />

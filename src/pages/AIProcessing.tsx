@@ -85,7 +85,7 @@ export function AIProcessing() {
           </Button>
         )}
         {done && (
-          <Button onClick={() => navigate('/dashboard/rankings')} className="gap-2">
+          <Button onClick={() => navigate('/dashboard/candidates?tab=rankings')} className="gap-2">
             View Rankings <ChevronRight size={15} />
           </Button>
         )}
@@ -205,7 +205,7 @@ export function AIProcessing() {
           </div>
           <h3 className="text-lg font-bold text-text-primary mb-1">AI Analysis Complete!</h3>
           <p className="text-sm text-text-secondary mb-4">All 10 candidates have been ranked and analyzed.</p>
-          <Button onClick={() => navigate('/dashboard/rankings')} className="gap-2">
+          <Button onClick={() => navigate('/dashboard/candidates?tab=rankings')} className="gap-2">
             View Candidate Rankings <ChevronRight size={15} />
           </Button>
         </motion.div>

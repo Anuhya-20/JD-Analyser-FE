@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, FileText, Users, Brain, Trophy,
-  MessageSquare, BarChart3, Settings, ChevronRight, LogOut,
+  LayoutDashboard, FileText, Users, Brain,
+  MessageSquare, BarChart3, ChevronRight, LogOut,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
@@ -13,10 +13,8 @@ const navItems = [
   { label: 'Job Descriptions', icon: FileText, path: '/dashboard/jobs' },
   { label: 'Candidates', icon: Users, path: '/dashboard/candidates' },
   { label: 'AI Analysis', icon: Brain, path: '/dashboard/ai-processing' },
-  { label: 'Ranking Engine', icon: Trophy, path: '/dashboard/rankings' },
   { label: 'Interview Assistant', icon: MessageSquare, path: '/dashboard/interview' },
   { label: 'Reports', icon: BarChart3, path: '/dashboard/reports' },
-  { label: 'Settings', icon: Settings, path: '/dashboard/settings' },
 ];
 
 export function Sidebar() {
