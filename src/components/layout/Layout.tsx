@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
-import { AICopilot } from '@/components/AICopilot';
+import { Toaster } from '@/components/ui/Toast';
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,7 +16,7 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
-      <AICopilot />
+      <Toaster />
     </div>
   );
 }

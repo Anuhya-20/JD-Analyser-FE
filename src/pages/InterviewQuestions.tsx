@@ -1,186 +1,336 @@
-﻿import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Brain, Code, Users, Lightbulb, ChevronDown, ChevronUp, Sparkles, RefreshCw } from 'lucide-react';
+import {
+  Code, Users, Lightbulb,
+  Sparkles, RefreshCw, Loader2, AlertTriangle, MessageSquare,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { mockCandidates } from '@/data/mockData';
+import { BASE_URL, authHeaders } from '@/lib/api';
+import { toast } from '@/components/ui/Toast';
 
-const sorted = [...mockCandidates].sort((a, b) => b.matchScore - a.matchScore);
+/* ── Shortlisted candidates types ───────────────────────── */
+interface ShortlistedCandidate {
+  candidate_profile_id: string;
+  full_name: string | null;
+  email: string;
+  total_years_experience: number;
+  overall_score: number;
+  rank: number;
+  jd_id: string;
+  job_title: string;
+  company_name: string;
+}
 
-const questionBank = {
-  technical: [
-    { q: "Explain how you would architect a React application for performance at scale with millions of users.", difficulty: "Hard", tags: ["React", "Architecture"] },
-    { q: "How would you implement authentication with JWT tokens and refresh token rotation in a full-stack app?", difficulty: "Medium", tags: ["Security", "Backend"] },
-    { q: "Describe your approach to database query optimization in PostgreSQL for a high-traffic system.", difficulty: "Hard", tags: ["PostgreSQL", "Performance"] },
-    { q: "Walk me through setting up a CI/CD pipeline using Docker and AWS ECS.", difficulty: "Medium", tags: ["AWS", "Docker", "DevOps"] },
-    { q: "How do you handle state management in a large React TypeScript application?", difficulty: "Medium", tags: ["React", "TypeScript"] },
-  ],
-  behavioral: [
-    { q: "Tell me about a time you led a technical team through a critical production incident. What did you do?", difficulty: "Medium", tags: ["Leadership", "Problem-solving"] },
-    { q: "Describe a situation where you had to disagree with a technical decision made by senior leadership.", difficulty: "Medium", tags: ["Communication", "Confidence"] },
-    { q: "How do you handle competing priorities when multiple stakeholders have urgent requests?", difficulty: "Easy", tags: ["Prioritization", "Communication"] },
-    { q: "Tell me about the most complex technical project you've delivered. What challenges did you face?", difficulty: "Medium", tags: ["Technical Depth", "Project Management"] },
-  ],
-  scenario: [
-    { q: "Our application is experiencing 500ms latency spikes every 30 minutes in production. How would you debug this?", difficulty: "Hard", tags: ["Debugging", "Performance", "AWS"] },
-    { q: "You discover a security vulnerability in the production database the day before a major product launch. What do you do?", difficulty: "Hard", tags: ["Security", "Decision Making"] },
-    { q: "The team wants to migrate from a monolith to microservices. You need to propose an incremental migration plan.", difficulty: "Hard", tags: ["Architecture", "Strategy"] },
-  ],
+interface ShortlistedResponse {
+  items: ShortlistedCandidate[];
+  total: number;
+}
+
+/* ── Interview API types ─────────────────────────────────── */
+interface ApiQuestion {
+  question?: string;
+  q?: string;
+  text?: string;
+  difficulty?: string;
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+type NormalizedQuestion = { q: string; difficulty: string; tags: string[] };
+
+function normalize(item: ApiQuestion | string | unknown): NormalizedQuestion {
+  if (typeof item === 'string') return { q: item, difficulty: 'Medium', tags: [] };
+  if (typeof item === 'object' && item !== null) {
+    const obj = item as ApiQuestion;
+    return {
+      q: (obj.question ?? obj.q ?? obj.text ?? '') as string,
+      difficulty: (obj.difficulty ?? 'Medium') as string,
+      tags: Array.isArray(obj.tags) ? obj.tags as string[] : [],
+    };
+  }
+  return { q: String(item), difficulty: 'Medium', tags: [] };
+}
+
+function labelFromKey(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+const SECTION_ICONS: Record<string, React.ReactNode> = {
+  technical:  <Code size={15} />,
+  behavioral: <Users size={15} />,
+  scenario:   <Sparkles size={15} />,
+  situational:<Sparkles size={15} />,
 };
+const SECTION_COLORS: Record<string, string> = {
+  technical:  'text-primary-600',
+  behavioral: 'text-emerald-600',
+  scenario:   'text-violet-600',
+  situational:'text-violet-600',
+};
+
+function iconFor(key: string) {
+  return SECTION_ICONS[key.toLowerCase()] ?? <MessageSquare size={15} />;
+}
+function colorFor(key: string) {
+  return SECTION_COLORS[key.toLowerCase()] ?? 'text-primary-600';
+}
+
+/* ── Extract all renderable sections from ANY API response── */
+function parseSections(raw: unknown): { key: string; title: string; questions: NormalizedQuestion[] }[] {
+  if (!raw || typeof raw !== 'object') return [];
+
+  const sections: { key: string; title: string; questions: NormalizedQuestion[] }[] = [];
+
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(value) || value.length === 0) continue;
+    const questions = (value as unknown[]).map(normalize).filter(q => q.q.trim() !== '');
+    if (questions.length > 0) {
+      sections.push({ key, title: labelFromKey(key), questions });
+    }
+  }
+
+  return sections;
+}
 
 const difficultyColors: Record<string, string> = {
-  Easy: 'text-emerald-600 bg-emerald-50',
+  Easy:   'text-emerald-600 bg-emerald-50',
   Medium: 'text-amber-600 bg-amber-50',
-  Hard: 'text-red-600 bg-red-50',
+  Hard:   'text-red-600 bg-red-50',
 };
 
+function getInitials(name: string | null, email: string) {
+  if (name) return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  return email.slice(0, 2).toUpperCase();
+}
+
+/* ── QuestionCard ───────────────────────────────────────── */
 function QuestionCard({ q, difficulty, tags, index }: { q: string; difficulty: string; tags: string[]; index: number }) {
-  const [expanded, setExpanded] = useState(false);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.04 }}
       className="border border-border rounded-xl p-4 hover:shadow-card-hover transition-all"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <p className="text-sm text-text-primary font-medium leading-relaxed">{q}</p>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              className="mt-3 p-3 bg-primary-50 rounded-lg"
-            >
-              <p className="text-xs text-primary-700 font-medium mb-1">What to look for:</p>
-              <p className="text-xs text-primary-600">Look for structured thinking, real-world examples, measurable outcomes, and how the candidate handled edge cases or challenges.</p>
-            </motion.div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${difficultyColors[difficulty]}`}>{difficulty}</span>
-          <button onClick={() => setExpanded(v => !v)} className="p-1 text-text-secondary hover:text-text-primary">
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-        </div>
+        <p className="text-sm text-text-primary font-medium leading-relaxed flex-1">{q}</p>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${difficultyColors[difficulty] ?? 'text-amber-600 bg-amber-50'}`}>
+          {difficulty}
+        </span>
       </div>
-      <div className="flex gap-1.5 mt-2">
-        {tags.map(t => <Badge key={t} variant="outline" className="text-xs">{t}</Badge>)}
-      </div>
+      {tags.length > 0 && (
+        <div className="flex gap-1.5 mt-2 flex-wrap">
+          {tags.map(t => <Badge key={t} variant="outline" className="text-xs">{t}</Badge>)}
+        </div>
+      )}
     </motion.div>
   );
 }
 
+/* ── Main component ─────────────────────────────────────── */
 export function InterviewQuestions() {
-  const [selectedCandidate, setSelectedCandidate] = useState(sorted[0].id);
-  const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(true);
+  const [candidates, setCandidates]               = useState<ShortlistedCandidate[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [fetchError, setFetchError]               = useState<string | null>(null);
+  const [selectedId, setSelectedId]               = useState<string | null>(null);
+  const [generating, setGenerating]               = useState(false);
+  const [generated, setGenerated]                 = useState(false);
+  const [generateError, setGenerateError]         = useState<string | null>(null);
+  const [sections, setSections]                   = useState<{ key: string; title: string; questions: NormalizedQuestion[] }[]>([]);
 
-  const candidate = mockCandidates.find(c => c.id === selectedCandidate) || sorted[0];
+  /* Fetch shortlisted candidates */
+  useEffect(() => {
+    fetch(`${BASE_URL}/api/v1/candidates/accepted?page=1&page_size=50`, {
+      headers: authHeaders(),
+    })
+      .then(r => { if (!r.ok) throw new Error(`Error ${r.status}`); return r.json() as Promise<ShortlistedResponse>; })
+      .then(data => {
+        setCandidates(data.items ?? []);
+        if ((data.items ?? []).length > 0) setSelectedId(data.items[0].candidate_profile_id);
+      })
+      .catch((err: Error) => setFetchError(err.message))
+      .finally(() => setLoadingCandidates(false));
+  }, []);
 
-  const handleGenerate = () => {
+  const selected = candidates.find(c => c.candidate_profile_id === selectedId) ?? null;
+
+  const handleGenerate = async () => {
+    if (!selected) return;
     setGenerating(true);
     setGenerated(false);
-    setTimeout(() => { setGenerating(false); setGenerated(true); }, 1800);
+    setGenerateError(null);
+    setSections([]);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/interview/${selected.jd_id}/${selected.candidate_profile_id}`,
+        { method: 'POST', headers: authHeaders() }
+      );
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data: unknown = await res.json();
+      const parsed = parseSections(data);
+      setSections(parsed);
+      setGenerated(true);
+      toast.success('Interview questions generated successfully!');
+    } catch (err) {
+      setGenerateError((err as Error).message);
+      toast.error('Failed to generate interview questions.');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">AI Interview Question Generator</h1>
-        <p className="text-text-secondary text-sm mt-0.5">Tailored interview questions generated based on candidate profile and JD requirements.</p>
+        <p className="text-text-secondary text-sm mt-0.5">
+          Tailored interview questions generated based on shortlisted candidate profiles.
+        </p>
       </div>
+
+      {/* Candidates fetch error */}
+      {fetchError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+          <AlertTriangle size={15} /> Failed to load candidates: {fetchError}
+        </div>
+      )}
 
       {/* Candidate selector */}
       <Card>
-        <CardHeader><CardTitle>Select Candidate</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Select Shortlisted Candidate</CardTitle></CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {sorted.slice(0, 5).map(c => (
-              <button
-                key={c.id}
-                onClick={() => { setSelectedCandidate(c.id); setGenerated(false); }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                  selectedCandidate === c.id ? 'bg-primary-50 border-primary-300 text-primary-700' : 'border-border text-text-secondary hover:bg-gray-50'
-                }`}
-              >
-                <Avatar initials={c.photo} size="sm" />
-                {c.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Avatar initials={candidate.photo} size="md" />
-              <div>
-                <p className="text-sm font-semibold text-text-primary">{candidate.name}</p>
-                <p className="text-xs text-text-secondary">{candidate.matchScore}% match &middot; {candidate.experience} yrs</p>
-              </div>
+          {loadingCandidates ? (
+            <div className="flex items-center gap-2 py-4 text-text-secondary text-sm">
+              <Loader2 size={16} className="animate-spin" /> Loading shortlisted candidates...
             </div>
-            <Button onClick={handleGenerate} loading={generating} variant="secondary" size="sm" className="ml-auto gap-1.5">
-              <RefreshCw size={13} />
-              {generating ? 'Generating...' : 'Generate Questions'}
-            </Button>
-          </div>
+          ) : candidates.length === 0 ? (
+            <p className="text-sm text-text-secondary py-4">
+              No shortlisted candidates found. Shortlist candidates from the rankings page first.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {candidates.slice(0, 8).map(c => {
+                  const name     = c.full_name || c.email;
+                  const initials = getInitials(c.full_name, c.email);
+                  const active   = selectedId === c.candidate_profile_id;
+                  return (
+                    <button
+                      key={c.candidate_profile_id}
+                      onClick={() => {
+                        setSelectedId(c.candidate_profile_id);
+                        setGenerated(false);
+                        setSections([]);
+                        setGenerateError(null);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                        active
+                          ? 'bg-primary-50 border-primary-300 text-primary-700'
+                          : 'border-border text-text-secondary hover:bg-gray-50'
+                      }`}
+                    >
+                      <Avatar initials={initials} size="sm" />
+                      <span className="truncate max-w-[120px]">{name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selected && (
+                <div className="mt-4 flex items-center gap-4">
+                  <Avatar initials={getInitials(selected.full_name, selected.email)} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-primary truncate">
+                      {selected.full_name || selected.email}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {selected.overall_score.toFixed(1)}% match
+                      &nbsp;&middot;&nbsp;
+                      {selected.total_years_experience} yrs exp
+                      &nbsp;&middot;&nbsp;
+                      <span className="capitalize">{selected.job_title}</span>
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleGenerate}
+                    loading={generating}
+                    variant="secondary"
+                    size="sm"
+                    className="ml-auto gap-1.5 flex-shrink-0"
+                  >
+                    <RefreshCw size={13} />
+                    {generating ? 'Generating...' : generated ? 'Regenerate' : 'Generate Questions'}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
+      {/* Generate error */}
+      {generateError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+          <AlertTriangle size={15} /> Failed to generate questions: {generateError}
+        </div>
+      )}
+
+      {/* Questions — rendered dynamically from API response keys */}
       <AnimatePresence>
-        {generated && (
+        {generated && selected && sections.length > 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            {/* Missing Skills note */}
+            {/* Context banner */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
               <Lightbulb size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-amber-800 mb-1">Generated based on candidate profile</p>
+                <p className="text-xs font-semibold text-amber-800 mb-1">
+                  Generated for {selected.full_name || selected.email}
+                </p>
                 <p className="text-xs text-amber-700">
-                  Questions focus on <span className="font-medium">{candidate.skills.slice(0, 3).join(', ')}</span> (core skills)
-                  and <span className="font-medium">{candidate.weaknesses[0]}</span> (identified gap).
+                  Role: <span className="font-medium capitalize">{selected.job_title}</span>
+                  &nbsp;&middot;&nbsp;
+                  Experience: <span className="font-medium">{selected.total_years_experience} yrs</span>
+                  &nbsp;&middot;&nbsp;
+                  Match score: <span className="font-medium">{selected.overall_score.toFixed(1)}%</span>
+                  &nbsp;&middot;&nbsp;
+                  Total questions: <span className="font-medium">{sections.reduce((n, s) => n + s.questions.length, 0)}</span>
                 </p>
               </div>
             </div>
 
-            {/* Technical Questions */}
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2 py-3">
-                <Code size={15} className="text-primary-600" />
-                <CardTitle>Technical Questions ({questionBank.technical.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {questionBank.technical.map((q, i) => (
-                  <QuestionCard key={i} {...q} index={i} />
-                ))}
-              </CardContent>
-            </Card>
+            {/* One card per section returned by the API */}
+            {sections.map(section => (
+              <Card key={section.key}>
+                <CardHeader className="flex flex-row items-center gap-2 py-3">
+                  <span className={colorFor(section.key)}>{iconFor(section.key)}</span>
+                  <CardTitle>{section.title} ({section.questions.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {section.questions.map((q, i) => (
+                    <QuestionCard key={i} {...q} index={i} />
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </motion.div>
+        )}
 
-            {/* Behavioral Questions */}
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2 py-3">
-                <Users size={15} className="text-emerald-600" />
-                <CardTitle>Behavioral Questions ({questionBank.behavioral.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {questionBank.behavioral.map((q, i) => (
-                  <QuestionCard key={i} {...q} index={i} />
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Scenario-Based */}
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2 py-3">
-                <Sparkles size={15} className="text-violet-600" />
-                <CardTitle>Scenario-Based Questions ({questionBank.scenario.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {questionBank.scenario.map((q, i) => (
-                  <QuestionCard key={i} {...q} index={i} />
-                ))}
-              </CardContent>
-            </Card>
+        {/* API responded but no question arrays found */}
+        {generated && sections.length === 0 && !generateError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-6 text-center"
+          >
+            <Lightbulb className="mx-auto text-amber-400 mb-2" size={24} />
+            <p className="text-sm font-medium text-amber-800">No questions returned by the API.</p>
+            <p className="text-xs text-amber-600 mt-1">The server responded successfully but contained no question data.</p>
           </motion.div>
         )}
       </AnimatePresence>

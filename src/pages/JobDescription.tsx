@@ -27,12 +27,12 @@ export function JobDescription() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<'upload' | 'paste'>('upload');
   const [jobTitle, setJobTitle] = useState('');
-  const [companyName, setCompanyName] = useState('');
   const [pastedText, setPastedText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contentTouched, setContentTouched] = useState(false);
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -92,7 +92,7 @@ export function JobDescription() {
     try {
       const formData = new FormData();
       formData.append('title', jobTitle.trim());
-      if (companyName.trim()) formData.append('company_name', companyName.trim());
+      formData.append('company_name', 'bilvantis');
 
       if (mode === 'upload' && file) {
         formData.append('file', file);
@@ -130,35 +130,24 @@ export function JobDescription() {
       {/* Upload Area */}
       <Card>
         <CardHeader>
-          {/* Job Title + Company */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-semibold text-text-primary uppercase tracking-wide mb-1.5">
-                Job Title <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={jobTitle}
-                onChange={e => setJobTitle(e.target.value)}
-                placeholder="e.g. Senior Full Stack Developer"
-                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-primary uppercase tracking-wide mb-1.5">
-                Company Name
-              </label>
-              <input
-                type="text"
-                value={companyName}
-                onChange={e => setCompanyName(e.target.value)}
-                placeholder="e.g. Bilvantis"
-                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
+          {/* Job Title */}
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-text-primary uppercase tracking-wide mb-1.5">
+              Job Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={jobTitle}
+              onChange={e => setJobTitle(e.target.value)}
+              placeholder="e.g. Senior Full Stack Developer"
+              className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex rounded-lg border border-border p-1 bg-gray-50">
+          <div>
+            <label className="block text-xs font-semibold text-text-primary uppercase tracking-wide mb-1.5">
+              Job Description <span className="text-red-500">*</span>
+            </label>
+            <div className="flex rounded-lg border border-border p-1 bg-gray-50 w-fit">
               <button
                 onClick={() => setMode('upload')}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === 'upload' ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary'}`}
@@ -179,7 +168,10 @@ export function JobDescription() {
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
-                isDragActive ? 'border-primary-500 bg-primary-50' : file ? 'border-emerald-400 bg-emerald-50' : 'border-border hover:border-primary-300 hover:bg-primary-50/40'
+                isDragActive ? 'border-primary-500 bg-primary-50'
+                : file ? 'border-emerald-400 bg-emerald-50'
+                : contentTouched && !file ? 'border-red-400 bg-red-50/30'
+                : 'border-border hover:border-primary-300 hover:bg-primary-50/40'
               }`}
             >
               <input {...getInputProps()} />
@@ -214,10 +206,17 @@ export function JobDescription() {
             <textarea
               value={pastedText}
               onChange={e => setPastedText(e.target.value)}
+              onBlur={() => setContentTouched(true)}
               placeholder="Paste your job description text here..."
               rows={10}
-              className="w-full p-4 border border-border rounded-xl text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              className={`w-full p-4 border rounded-xl text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none ${
+                contentTouched && !pastedText.trim() ? 'border-red-400' : 'border-border'
+              }`}
             />
+          )}
+
+          {contentTouched && !file && !pastedText.trim() && (
+            <p className="mt-1.5 text-xs text-red-500">Please upload a file or paste a job description.</p>
           )}
 
           {error && (
@@ -226,7 +225,7 @@ export function JobDescription() {
 
           <div className="mt-4 flex justify-end">
             <Button
-              onClick={handleAnalyze}
+              onClick={() => { setContentTouched(true); handleAnalyze(); }}
               loading={analyzing}
               disabled={!jobTitle.trim() || (!file && !pastedText.trim())}
               size="lg"

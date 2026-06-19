@@ -15,6 +15,7 @@ import { SkillGapHeatmap } from '@/pages/SkillGapHeatmap';
 import { CandidateComparison } from '@/pages/CandidateComparison';
 import { InterviewQuestions } from '@/pages/InterviewQuestions';
 import { HiringDecisionRoom } from '@/pages/HiringDecisionRoom';
+import { ShortlistedCandidates } from '@/pages/ShortlistedCandidates';
 import { Analytics } from '@/pages/Analytics';
 import { Settings } from '@/pages/Settings';
 import { JobDescriptionDetail } from '@/pages/JobDescriptionDetail';
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="heatmap" element={<PageWrapper><SkillGapHeatmap /></PageWrapper>} />
           <Route path="comparison" element={<PageWrapper><CandidateComparison /></PageWrapper>} />
           <Route path="interview" element={<PageWrapper><InterviewQuestions /></PageWrapper>} />
+          <Route path="shortlisted" element={<PageWrapper><ShortlistedCandidates /></PageWrapper>} />
           <Route path="hiring-room" element={<PageWrapper><HiringDecisionRoom /></PageWrapper>} />
           <Route path="reports" element={<PageWrapper><Analytics /></PageWrapper>} />
           <Route path="settings" element={<PageWrapper><Settings /></PageWrapper>} />

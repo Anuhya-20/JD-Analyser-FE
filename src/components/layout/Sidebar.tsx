@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, FileText, Users, MessageSquare, ChevronRight, LogOut,
+  LayoutDashboard, FileText, Users, MessageSquare, ChevronRight, LogOut, Star,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { BASE_URL } from '@/lib/api';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Job Descriptions', icon: FileText, path: '/dashboard/jobs' },
   { label: 'Candidates', icon: Users, path: '/dashboard/candidates' },
+  { label: 'Shortlisted', icon: Star, path: '/dashboard/shortlisted' },
   { label: 'Interview Assistant', icon: MessageSquare, path: '/dashboard/interview' },
 ];
 
@@ -91,9 +93,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <div className="p-2">
                   <button
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                    onClick={() => {
-                      localStorage.removeItem('talentiq_auth');
-                      localStorage.removeItem('talentiq_user');
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('talentiq_auth_token');
+                        await fetch(`${BASE_URL}/api/v1/auth/logout`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                          },
+                        });
+                      } catch { /* proceed with logout regardless */ }
+                      localStorage.clear();
                       setPopupOpen(false);
                       onClose();
                       navigate('/login');
