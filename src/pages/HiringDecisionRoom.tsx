@@ -33,7 +33,7 @@ export function HiringDecisionRoom() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Trophy size={22} className="text-amber-500" />
@@ -41,7 +41,7 @@ export function HiringDecisionRoom() {
           </div>
           <p className="text-text-secondary text-sm">Make final hiring decisions powered by AI analysis.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Badge variant="success">{Object.values(decisions).filter(d => d === 'shortlisted').length} Shortlisted</Badge>
           <Badge variant="blue">{Object.values(decisions).filter(d => d === 'interview').length} Interview</Badge>
           <Badge variant="error">{Object.values(decisions).filter(d => d === 'rejected').length} Rejected</Badge>

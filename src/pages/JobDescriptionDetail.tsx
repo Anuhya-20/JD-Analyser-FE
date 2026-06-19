@@ -137,7 +137,7 @@ export function JobDescriptionDetail() {
       </motion.div>
 
       {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
         {/* Left column */}
         <div className="lg:col-span-2 space-y-5">
@@ -269,24 +269,6 @@ export function JobDescriptionDetail() {
                     </>
                   )}
 
-                  {job.preferred_skills && job.preferred_skills.length > 0 && (
-                    <>
-                      <div className="border-t border-border" />
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Star size={14} className="text-amber-600" />
-                          <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Preferred Skills</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {job.preferred_skills.map(skill => (
-                            <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                              <Star size={11} /> {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </CardContent>
               </Card>
             </motion.div>

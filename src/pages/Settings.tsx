@@ -63,7 +63,7 @@ export function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-text-secondary">Select the AI model for resume analysis and candidate matching.</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               {
                 id: 'gpt4o',

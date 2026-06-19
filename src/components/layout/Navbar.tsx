@@ -66,7 +66,6 @@ export function Navbar({ onMenuClick }: NavbarProps) {
         >
           <div className="hidden sm:block text-right">
             <p className="text-sm font-semibold text-text-primary leading-tight">{displayName}</p>
-            <p className="text-xs text-text-secondary leading-tight">{user.email}</p>
           </div>
           <Avatar initials={initials} size="sm" />
         </button>

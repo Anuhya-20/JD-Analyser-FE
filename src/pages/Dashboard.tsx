@@ -145,11 +145,11 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
           <p className="text-text-secondary text-sm mt-0.5">
-            Welcome back, {userName}
+            Welcome, {userName}
           </p>
         </div>
       </div>
@@ -188,7 +188,7 @@ export function Dashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Activity Trend */}
         <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">

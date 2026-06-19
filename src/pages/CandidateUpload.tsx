@@ -34,6 +34,7 @@ interface Rating {
   recommendation?: string;
   candidate_id?: string;
   candidate_profile_id?: string;
+  candidate_status?: string;
 }
 
 interface Job { id: string; title: string; }
@@ -57,8 +58,10 @@ interface Resume {
   name?: string;
   email?: string;
   status?: string;
+  candidate_status?: string;
   created_at?: string;
   match_score?: number;
+  overall_score?: number;
 }
 
 interface UploadedFile {
@@ -106,6 +109,7 @@ export function CandidateUpload() {
   const [isPolling, setIsPolling] = useState(false);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [ratingsLoading, setRatingsLoading] = useState(false);
+  const [candidateStatusMap, setCandidateStatusMap] = useState<Record<string, string>>({});
   const pollIntervalRef = useRef<ReturnType<typeof setInterval>>();
   const selectedJdIdRef = useRef<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -168,12 +172,28 @@ export function CandidateUpload() {
 
   // Fetch ratings when switching to rankings tab or when JD changes on rankings tab
   useEffect(() => {
-    if (activeTab !== 'rankings' || !selectedJD) { setRatings([]); return; }
+    if (activeTab !== 'rankings' || !selectedJD) { setRatings([]); setCandidateStatusMap({}); return; }
     setRatingsLoading(true);
-    fetch(`${BASE_URL}/api/v1/ratings/${selectedJD.id}`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setRatings(Array.isArray(data) ? data : (data.items ?? data.data ?? [])))
-      .catch(() => setRatings([]))
+    const jdId = selectedJD.id;
+    Promise.all([
+      fetch(`${BASE_URL}/api/v1/ratings/${jdId}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => Array.isArray(data) ? data : (data.items ?? data.data ?? [])),
+      fetch(`${BASE_URL}/api/v1/resumes/${jdId}?page=1&page_size=200`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => Array.isArray(data) ? data : (data.items ?? data.data ?? [])),
+    ])
+      .then(([ratingsList, resumesList]) => {
+        setRatings(ratingsList);
+        const map: Record<string, string> = {};
+        resumesList.forEach((res: { candidate_profile_id?: string; candidate_status?: string }) => {
+          if (res.candidate_profile_id && res.candidate_status) {
+            map[res.candidate_profile_id] = res.candidate_status;
+          }
+        });
+        setCandidateStatusMap(map);
+      })
+      .catch(() => { setRatings([]); setCandidateStatusMap({}); })
       .finally(() => setRatingsLoading(false));
   }, [activeTab, selectedJD]);
 
@@ -196,8 +216,9 @@ export function CandidateUpload() {
       .then(r => r.ok ? r.json() : null)
       .then((data: ProcessingStatus | null) => {
         if (!data) return;
-        setProcessingData(data);
-        if (data.status !== 'completed' && data.status !== 'failed') {
+        // Only show processing strip if pipeline is actively running
+        if (data.status === 'processing' || data.status === 'pending' && data.progress_percentage > 0) {
+          setProcessingData(data);
           startPolling(selectedJD.id);
         }
       })
@@ -375,7 +396,7 @@ export function CandidateUpload() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           {activeTab === 'rankings' && (
             <button
@@ -547,15 +568,8 @@ export function CandidateUpload() {
                       <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Rank</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Candidate</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Overall Score</th>
-                      {sortedRatings.some(r => (r.experience_score ?? 0) > 0) && (
-                        <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Experience</th>
-                      )}
-                      {sortedRatings.some(r => (r.skill_match_score ?? r.skill_score ?? r.skills_score ?? 0) > 0) && (
-                        <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Skills</th>
-                      )}
-                      {sortedRatings.some(r => r.recommendation_level ?? r.recommendation) && (
-                        <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Recommendation</th>
-                      )}
+                      <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Recommendation</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Status</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Action</th>
                     </tr>
                   </thead>
@@ -594,32 +608,32 @@ export function CandidateUpload() {
                               {score}%
                             </span>
                           </td>
-                          {sortedRatings.some(x => (x.experience_score ?? 0) > 0) && (
-                            <td className="px-4 py-3">
-                              {(r.experience_score ?? 0) > 0
-                                ? <span className="text-sm font-semibold text-text-primary">{r.experience_score}%</span>
-                                : <span className="text-xs text-text-secondary">—</span>}
-                            </td>
-                          )}
-                          {sortedRatings.some(x => (x.skill_match_score ?? x.skill_score ?? x.skills_score ?? 0) > 0) && (
-                            <td className="px-4 py-3">
-                              {skillScore > 0
-                                ? <span className="text-sm font-semibold text-text-primary">{skillScore}%</span>
-                                : <span className="text-xs text-text-secondary">—</span>}
-                            </td>
-                          )}
-                          {sortedRatings.some(x => x.recommendation_level ?? x.recommendation) && (
-                            <td className="px-4 py-3">
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                rec?.toLowerCase().includes('strong') ? 'bg-emerald-100 text-emerald-700' :
-                                rec?.toLowerCase().includes('not')    ? 'bg-red-100 text-red-700' :
-                                rec?.toLowerCase().includes('consider') ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {rec ?? '—'}
-                              </span>
-                            </td>
-                          )}
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                              rec?.toLowerCase().includes('strong')   ? 'bg-emerald-100 text-emerald-700' :
+                              rec?.toLowerCase().includes('not')      ? 'bg-red-100 text-red-700' :
+                              rec?.toLowerCase().includes('consider') ? 'bg-blue-100 text-blue-700' :
+                              rec?.toLowerCase() === 'maybe'          ? 'bg-amber-100 text-amber-700' :
+                              rec ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-400'
+                            }`}>
+                              {rec ?? '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {(() => {
+                              const candId = r.candidate_profile_id ?? r.candidate_id ?? r.id;
+                              const cs = (candidateStatusMap[candId] ?? r.candidate_status ?? '').toLowerCase();
+                              if (cs === 'accepted') return (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Shortlisted</span>
+                              );
+                              if (cs === 'rejected') return (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
+                              );
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Pending</span>
+                              );
+                            })()}
+                          </td>
                           <td className="px-4 py-3">
                             <button
                               onClick={() => navigate(`/dashboard/candidates/${getRatingCandId(r)}?jd_id=${selectedJD.id}`)}
@@ -647,7 +661,7 @@ export function CandidateUpload() {
         <CardContent className="pt-4">
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
+            className={`border-2 border-dashed rounded-xl p-6 sm:p-12 text-center cursor-pointer transition-all ${
               isDragActive
                 ? 'border-primary-500 bg-primary-50'
                 : 'border-border hover:border-primary-300 hover:bg-primary-50/40'
@@ -708,7 +722,7 @@ export function CandidateUpload() {
 
       {/* Submit */}
       <AnimatePresence>
-        {(selectedJD || uploadedFiles.length > 0) && (
+        {uploadedFiles.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -717,7 +731,6 @@ export function CandidateUpload() {
           >
             <div className="text-sm text-text-secondary">
               {!selectedJD && <span className="text-amber-600 font-medium">Select a job description</span>}
-              {selectedJD && doneFiles.length === 0 && <span className="text-amber-600 font-medium">Add at least one resume</span>}
               {canSubmit && (
                 <span className="text-emerald-600 font-medium">
                   Ready — {doneFiles.length} resume{doneFiles.length !== 1 ? 's' : ''} for <span className="font-semibold">{selectedJD!.title}</span>
@@ -752,24 +765,6 @@ export function CandidateUpload() {
             )}
           </CardHeader>
 
-          {/* Progress strip while pipeline is running */}
-          {isPolling && processingData && (
-            <div className="px-6 pb-3 flex flex-wrap gap-4 text-xs text-text-secondary border-b border-border">
-              {[
-                { label: 'Parsed',   value: processingData.parsed },
-                { label: 'Profiled', value: processingData.profiled },
-                { label: 'Matched',  value: processingData.matched },
-                { label: 'Ranked',   value: processingData.ranked },
-              ].map(s => (
-                <span key={s.label} className="flex items-center gap-1">
-                  <span className="font-semibold text-text-primary">{s.value}</span> {s.label}
-                </span>
-              ))}
-              {processingData.failed > 0 && (
-                <span className="text-red-500">{processingData.failed} Failed</span>
-              )}
-            </div>
-          )}
 
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -779,6 +774,7 @@ export function CandidateUpload() {
                     <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary">Candidate</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary">File</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary">Status</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary">Candidate Status</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary">Match Score</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary">Uploaded</th>
                   </tr>
@@ -793,6 +789,7 @@ export function CandidateUpload() {
                           </td>
                           <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded animate-pulse w-40" /></td>
                           <td className="px-6 py-4"><div className="h-5 bg-gray-200 rounded-full animate-pulse w-20" /></td>
+                          <td className="px-6 py-4"><div className="h-5 bg-gray-200 rounded-full animate-pulse w-20" /></td>
                           <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded animate-pulse w-12" /></td>
                           <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded animate-pulse w-20" /></td>
                         </tr>
@@ -800,7 +797,7 @@ export function CandidateUpload() {
                     : resumes.length === 0 && !resumesLoading
                     ? (
                         <tr>
-                          <td colSpan={5}>
+                          <td colSpan={6}>
                             <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
                               <FileText size={32} className="mb-2 opacity-40" />
                               <p className="text-sm">No resumes uploaded yet for this job</p>
@@ -830,6 +827,20 @@ export function CandidateUpload() {
                             <Badge variant={r.status === 'processed' ? 'success' : r.status === 'processing' ? 'blue' : r.status === 'failed' ? 'warning' : 'outline'}>
                               {r.status ?? 'pending'}
                             </Badge>
+                          </td>
+                          <td className="px-6 py-3">
+                            {(() => {
+                              const cs = r.candidate_status?.toLowerCase();
+                              if (cs === 'accepted') return (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Shortlisted</span>
+                              );
+                              if (cs === 'rejected') return (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
+                              );
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Pending</span>
+                              );
+                            })()}
                           </td>
                           <td className="px-6 py-3">
                             {(r.overall_score ?? r.match_score) != null

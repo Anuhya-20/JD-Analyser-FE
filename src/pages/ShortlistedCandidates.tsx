@@ -89,7 +89,7 @@ export function ShortlistedCandidates() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Shortlisted Candidates</h1>
           <p className="text-text-secondary text-sm mt-0.5">
-            Accepted candidates for the selected job description.
+            Shortlisted candidates for the selected job description.
           </p>
         </div>
         {data && (
@@ -113,6 +113,9 @@ export function ShortlistedCandidates() {
           <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
         </button>
 
+        {dropdownOpen && (
+          <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+        )}
         {dropdownOpen && jobs.length > 0 && (
           <div className="absolute z-20 mt-1 w-full bg-white border border-border rounded-xl shadow-lg max-h-60 overflow-y-auto">
             {jobs.map(job => (
@@ -144,11 +147,21 @@ export function ShortlistedCandidates() {
         </div>
       )}
 
-      {/* Empty */}
-      {!loading && !error && data?.items.length === 0 && (
+      {/* No job selected */}
+      {!selectedJob && !jobsLoading && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <Users size={40} className="text-gray-300 mb-3" />
-          <p className="text-text-secondary text-sm">No shortlisted candidates for this job.</p>
+          <p className="text-sm font-medium text-text-primary">No shortlisted candidates found</p>
+          <p className="text-xs text-text-secondary mt-1">Select a job description to view its shortlisted candidates.</p>
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && selectedJob && data?.items.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <Users size={40} className="text-gray-300 mb-3" />
+          <p className="text-sm font-medium text-text-primary">No shortlisted candidates found</p>
+          <p className="text-xs text-text-secondary mt-1">No accepted candidates for <span className="font-semibold">{selectedJob.title}</span> yet.</p>
         </div>
       )}
 

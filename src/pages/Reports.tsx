@@ -23,7 +23,7 @@ export function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Recruiter Report</h1>
           <p className="text-text-secondary text-sm mt-0.5">Comprehensive analysis for Senior Full Stack Developer</p>
@@ -51,7 +51,7 @@ export function Reports() {
               scores above 85%. The average match score across all candidates is <strong>84%</strong>, indicating a strong
               talent pool for this position.
             </p>
-            <div className="grid grid-cols-4 gap-3 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
               {[
                 { label: 'Total Screened', value: '10', color: 'text-primary-600', bg: 'bg-primary-50' },
                 { label: 'High Match (85%+)', value: '4', color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -77,7 +77,7 @@ export function Reports() {
           </CardHeader>
           <CardContent className="space-y-3">
             {sorted.slice(0, 3).map((c, i) => (
-              <div key={c.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+              <div key={c.id} className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-xl">
                 <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${i === 0 ? 'bg-amber-100 text-amber-700' : i === 1 ? 'bg-slate-100 text-slate-600' : 'bg-orange-100 text-orange-700'}`}>{['#1', '#2', '#3'][i]}</span>
                 <Avatar initials={c.photo} size="md" />
                 <div className="flex-1">
@@ -103,6 +103,7 @@ export function Reports() {
             <CardTitle>Full Candidate Ranking</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-gray-50">
@@ -141,6 +142,7 @@ export function Reports() {
                 ))}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
 
