@@ -90,7 +90,7 @@ export function Login() {
         'talentiq_user',
         JSON.stringify({ full_name: fullName, email })
       );
-      sessionStorage.setItem('welcome_toast', `Welcome back${fullName ? ', ' + fullName : ''}!`);
+      sessionStorage.setItem('welcome_toast', `Welcome${fullName ? ', ' + fullName : ''}!`);
       navigate('/dashboard');
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Login failed');
@@ -212,7 +212,7 @@ export function Login() {
               fontSize: 26, fontWeight: 800, letterSpacing: '-0.035em',
               color: '#0F172A', marginBottom: 6,
             }}>
-              Welcome back
+              Welcome
             </h1>
             <p style={{ fontSize: 14, color: '#64748B' }}>
               Sign in to your recruitment dashboard

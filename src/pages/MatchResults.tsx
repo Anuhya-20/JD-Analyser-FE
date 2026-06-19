@@ -32,6 +32,7 @@ interface Rating {
   total_years_experience?: number;
   recommendation?: string;
   recommendation_level?: string;
+  candidate_status?: string;
 }
 
 const JD_PAGE_SIZE = 20;
@@ -369,15 +370,8 @@ export function MatchResults() {
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Rank</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Candidate</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Match Score</th>
-                    {sorted.some(r => getExp(r) > 0) && (
-                      <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Experience</th>
-                    )}
-                    {sorted.some(r => getSkill(r) > 0) && (
-                      <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Skills</th>
-                    )}
-                    {sorted.some(r => getRec(r)) && (
-                      <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Recommendation</th>
-                    )}
+                    <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Recommendation</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-secondary">Action</th>
                   </tr>
                 </thead>
@@ -408,28 +402,31 @@ export function MatchResults() {
                       <td className="px-4 py-3">
                         <ScoreBadge score={getScore(r)} />
                       </td>
-                      {sorted.some(x => getExp(x) > 0) && (
-                        <td className="px-4 py-3">
-                          {getExp(r) > 0 ? <ScoreBadge score={getExp(r)} /> : <span className="text-xs text-text-secondary">—</span>}
-                        </td>
-                      )}
-                      {sorted.some(x => getSkill(x) > 0) && (
-                        <td className="px-4 py-3">
-                          {getSkill(r) > 0 ? <ScoreBadge score={getSkill(r)} /> : <span className="text-xs text-text-secondary">—</span>}
-                        </td>
-                      )}
-                      {sorted.some(x => getRec(x)) && (
-                        <td className="px-4 py-3">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                            getRec(r)?.toLowerCase().includes('strong') ? 'bg-emerald-100 text-emerald-700' :
-                            getRec(r)?.toLowerCase().includes('consider') ? 'bg-blue-100 text-blue-700' :
-                            getRec(r)?.toLowerCase().includes('not') ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {getRec(r) ?? '—'}
-                          </span>
-                        </td>
-                      )}
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                          getRec(r)?.toLowerCase().includes('strong')   ? 'bg-emerald-100 text-emerald-700' :
+                          getRec(r)?.toLowerCase().includes('not')      ? 'bg-red-100 text-red-700' :
+                          getRec(r)?.toLowerCase().includes('consider') ? 'bg-blue-100 text-blue-700' :
+                          getRec(r)?.toLowerCase() === 'maybe'          ? 'bg-amber-100 text-amber-700' :
+                          getRec(r) ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-400'
+                        }`}>
+                          {getRec(r) ?? '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const cs = r.candidate_status?.toLowerCase();
+                          if (cs === 'accepted') return (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Shortlisted</span>
+                          );
+                          if (cs === 'rejected') return (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
+                          );
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Pending</span>
+                          );
+                        })()}
+                      </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => navigate(`/dashboard/candidates/${getCandId(r)}?jd_id=${selectedJD?.id}`)}

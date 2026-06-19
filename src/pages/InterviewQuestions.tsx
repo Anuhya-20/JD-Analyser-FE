@@ -227,6 +227,9 @@ export function InterviewQuestions() {
           <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${jobDropdownOpen ? 'rotate-180' : ''}`} />
         </button>
 
+        {jobDropdownOpen && (
+          <div className="fixed inset-0 z-10" onClick={() => setJobDropdownOpen(false)} />
+        )}
         {jobDropdownOpen && jobs.length > 0 && (
           <div className="absolute z-20 mt-1 w-full bg-white border border-border rounded-xl shadow-lg max-h-60 overflow-y-auto">
             {jobs.map(job => (
@@ -252,7 +255,7 @@ export function InterviewQuestions() {
 
       {/* Candidate selector */}
       <Card>
-        <CardHeader><CardTitle>Select Accepted Candidate</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Select Shortlisted Candidate</CardTitle></CardHeader>
         <CardContent>
           {loadingCandidates ? (
             <div className="flex items-center gap-2 py-4 text-text-secondary text-sm">

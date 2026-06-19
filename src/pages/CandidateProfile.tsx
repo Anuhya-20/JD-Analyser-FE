@@ -45,6 +45,13 @@ interface CandidateRating {
   summary?: string;
   status?: string;
   risk_level?: string;
+  score_breakdown?: {
+    skill_match?:         { score?: number; weight?: number; contribution?: number };
+    experience?:          { score?: number; weight?: number; contribution?: number };
+    education?:           { score?: number; weight?: number; contribution?: number };
+    semantic_similarity?: { score?: number; weight?: number; contribution?: number };
+    keyword_match?:       { score?: number; weight?: number; contribution?: number };
+  };
 }
 
 export function CandidateProfile() {
@@ -69,7 +76,8 @@ export function CandidateProfile() {
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       setActionStatus(decision);
-      toast.success(decision === 'accepted' ? 'Candidate shortlisted successfully!' : 'Candidate rejected.');
+      if (decision === 'accepted') toast.success('Candidate shortlisted successfully!');
+      else toast.error('Candidate rejected.');
     } catch {
       setActionStatus('idle');
       toast.error('Action failed. Please try again.');
@@ -116,10 +124,11 @@ export function CandidateProfile() {
 
   const name         = candidate.full_name ?? candidate.candidate_name ?? candidate.name ?? '—';
   const role         = candidate.role ?? candidate.current_title ?? '';
+  const sb           = candidate.score_breakdown;
   const matchScore   = candidate.match_score   ?? candidate.overall_score  ?? 0;
-  const skillScore   = candidate.skill_score   ?? candidate.skills_score   ?? 0;
-  const expScore     = candidate.experience_score ?? 0;
-  const eduScore     = candidate.education_score  ?? 0;
+  const skillScore   = sb?.skill_match?.score  ?? candidate.skill_score ?? candidate.skills_score ?? 0;
+  const expScore     = sb?.experience?.score   ?? candidate.experience_score ?? 0;
+  const eduScore     = sb?.education?.score    ?? candidate.education_score  ?? 0;
   const years        = candidate.experience ?? candidate.years_experience;
   const strengths    = candidate.strengths  ?? [];
   const weaknesses   = candidate.weaknesses ?? candidate.areas_to_improve ?? [];
@@ -136,8 +145,8 @@ export function CandidateProfile() {
   const scoreCards = [
     matchScore > 0 && { label: 'Overall Match', value: matchScore, color: 'text-primary-600', bg: 'bg-primary-50' },
     expScore   > 0 && { label: 'Experience',    value: expScore,   color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    skillScore > 0 && { label: 'Skills',        value: skillScore, color: 'text-amber-600',   bg: 'bg-amber-50'   },
-    eduScore   > 0 && { label: 'Education',     value: eduScore,   color: 'text-violet-600',  bg: 'bg-violet-50'  },
+    (sb?.skill_match != null || skillScore > 0) && { label: 'Skills Match', value: skillScore, color: 'text-amber-600', bg: 'bg-amber-50' },
+    (sb?.education   != null || eduScore   > 0) && { label: 'Education',    value: eduScore,   color: 'text-violet-600', bg: 'bg-violet-50' },
   ].filter(Boolean) as { label: string; value: number; color: string; bg: string }[];
 
   // Build unified skills list: required skills with matched/missing status
@@ -228,7 +237,7 @@ export function CandidateProfile() {
 
       {/* Score Cards */}
       {scoreCards.length > 0 && (
-        <div className={`grid grid-cols-2 lg:grid-cols-${Math.min(scoreCards.length, 4)} gap-4`}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {scoreCards.map((card, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
               <Card className="text-center p-4">
@@ -274,7 +283,7 @@ export function CandidateProfile() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Experience */}
         {years != null && (
           <Card>
@@ -306,7 +315,7 @@ export function CandidateProfile() {
 
       {/* Strengths & Weaknesses */}
       {(strengths.length > 0 || weaknesses.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {strengths.length > 0 && (
             <Card>
               <CardHeader className="flex flex-row items-center gap-2 py-3">

@@ -75,7 +75,8 @@ export function CandidateComparison() {
             
 
       {/* Side by side comparison */}
-      <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${candidates.length}, minmax(0, 1fr))` }}>
+      <div className="overflow-x-auto">
+      <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${candidates.length}, minmax(260px, 1fr))` }}>
         {candidates.map((c, ci) => (
           <motion.div key={c.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: ci * 0.1 }}>
             <Card className={ci === 0 ? 'ring-2 ring-primary-200' : ''}>
@@ -120,6 +121,7 @@ export function CandidateComparison() {
             </Card>
           </motion.div>
         ))}
+      </div>
       </div>
     </div>
   );
