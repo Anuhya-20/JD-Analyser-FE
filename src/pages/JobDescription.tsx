@@ -20,8 +20,17 @@ interface Job {
   candidates_count?: number;
 }
 
-const requiredSkills = ['React', 'Python', 'AWS', 'PostgreSQL', 'Docker', 'TypeScript', 'Node.js'];
-const preferredSkills = ['Kubernetes', 'GraphQL', 'Redis', 'Terraform', 'CI/CD'];
+interface CreatedJob {
+  id: string;
+  title: string;
+  required_skills?: string[] | null;
+  preferred_skills?: string[] | null;
+  min_years_experience?: number | null;
+  max_years_experience?: number | null;
+  experience_level?: string | null;
+  education_requirements?: string | null;
+  certifications?: string[] | null;
+}
 
 export function JobDescription() {
   const navigate = useNavigate();
@@ -31,6 +40,7 @@ export function JobDescription() {
   const [file, setFile] = useState<File | null>(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [createdJob, setCreatedJob] = useState<CreatedJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contentTouched, setContentTouched] = useState(false);
 
@@ -111,6 +121,8 @@ export function JobDescription() {
         throw new Error(msg || `Error ${res.status}`);
       }
 
+      const created = await res.json().catch(() => null) as CreatedJob | null;
+      setCreatedJob(created);
       setAnalyzed(true);
       fetchJobs();
     } catch (err) {
@@ -261,11 +273,15 @@ export function JobDescription() {
                   <CardTitle>Required Skills</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {requiredSkills.map(s => (
-                      <Badge key={s} variant="default" className="text-xs px-3 py-1">{s}</Badge>
-                    ))}
-                  </div>
+                  {createdJob?.required_skills?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {createdJob.required_skills.map(s => (
+                        <Badge key={s} variant="default" className="text-xs px-3 py-1">{s}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -278,11 +294,15 @@ export function JobDescription() {
                   <CardTitle>Preferred Skills</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {preferredSkills.map(s => (
-                      <Badge key={s} variant="warning" className="text-xs px-3 py-1">{s}</Badge>
-                    ))}
-                  </div>
+                  {createdJob?.preferred_skills?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {createdJob.preferred_skills.map(s => (
+                        <Badge key={s} variant="warning" className="text-xs px-3 py-1">{s}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -295,8 +315,20 @@ export function JobDescription() {
                   <CardTitle>Experience Required</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-text-primary">5+ Years</p>
-                  <p className="text-sm text-text-secondary mt-1">Full Stack Development</p>
+                  {createdJob?.min_years_experience != null ? (
+                    <>
+                      <p className="text-2xl font-bold text-text-primary">
+                        {createdJob.min_years_experience}
+                        {createdJob.max_years_experience != null ? `–${createdJob.max_years_experience}` : '+'}
+                        {' '}Years
+                      </p>
+                      {createdJob.experience_level && (
+                        <p className="text-sm text-text-secondary mt-1">{createdJob.experience_level}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -309,28 +341,33 @@ export function JobDescription() {
                   <CardTitle>Education Required</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm font-semibold text-text-primary">Bachelor's Degree</p>
-                  <p className="text-sm text-text-secondary mt-1">Computer Science or related field</p>
+                  {createdJob?.education_requirements ? (
+                    <p className="text-sm font-semibold text-text-primary">{createdJob.education_requirements}</p>
+                  ) : (
+                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
             {/* Certifications */}
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2 py-3">
-                <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
-                  <Award size={14} className="text-emerald-600" />
-                </div>
-                <CardTitle>Certifications</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {['AWS Certified Developer', 'AWS Solutions Architect', 'Kubernetes Administrator (CKA)'].map(c => (
-                    <Badge key={c} variant="success" className="text-xs px-3 py-1">{c}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {createdJob?.certifications?.length ? (
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2 py-3">
+                  <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+                    <Award size={14} className="text-emerald-600" />
+                  </div>
+                  <CardTitle>Certifications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {createdJob.certifications.map(c => (
+                      <Badge key={c} variant="success" className="text-xs px-3 py-1">{c}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
 
             <div className="flex justify-end">
               <Button onClick={() => navigate('/dashboard/candidates')} className="gap-2">
