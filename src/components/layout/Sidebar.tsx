@@ -33,13 +33,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-primary-50 text-primary-700 border border-primary-100'
-                  : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
+                  ? 'text-white bg-white/20 shadow-sm'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
               )}
             >
-              <item.icon className={cn('w-4.5 h-4.5', isActive ? 'text-primary-600' : 'text-current')} size={18} />
+              <item.icon className="text-current" size={18} />
               <span>{item.label}</span>
-              {isActive && <ChevronRight className="ml-auto text-primary-400" size={14} />}
+              {isActive && <ChevronRight className="ml-auto text-white/70" size={14} />}
             </motion.div>
           </NavLink>
         );
@@ -66,7 +66,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar — always visible on desktop, slide-in drawer on mobile */}
       <aside
         className={cn(
-          'w-64 bg-white border-r border-border flex flex-col fixed left-0 top-16 bottom-0 z-40',
+          'w-80 bg-primary-600 flex flex-col fixed left-0 top-16 bottom-0 z-40',
           'transition-transform duration-300 ease-in-out',
           'md:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'

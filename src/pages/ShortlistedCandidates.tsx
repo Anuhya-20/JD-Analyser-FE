@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Loader2, AlertTriangle, Briefcase, Star } from 'lucide-react';
+import { Users, Loader2, AlertTriangle, Briefcase, Star, ChevronDown } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { BASE_URL, authHeaders } from '@/lib/api';
+
+interface Job {
+  id: string;
+  title: string;
+}
+
+interface JobsResponse {
+  items: Job[];
+}
 
 interface ShortlistedCandidate {
   candidate_profile_id: string;
@@ -36,35 +45,88 @@ function getInitials(name: string | null, email: string | null) {
 }
 
 export function ShortlistedCandidates() {
+  const [jobs, setJobs]             = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const [data, setData]       = useState<ShortlistedResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
 
+  // Fetch job list
   useEffect(() => {
+    fetch(`${BASE_URL}/api/v1/jobs/titles?page=1&page_size=50`, { headers: authHeaders() })
+      .then(r => { if (!r.ok) throw new Error(`Error ${r.status}`); return r.json() as Promise<JobsResponse>; })
+      .then(d => {
+        const items = d.items ?? [];
+        setJobs(items);
+        if (items.length > 0) setSelectedJob(items[0]);
+      })
+      .catch(() => {})
+      .finally(() => setJobsLoading(false));
+  }, []);
+
+  // Fetch candidates when job changes
+  useEffect(() => {
+    if (!selectedJob) return;
     setLoading(true);
-    fetch(`${BASE_URL}/api/v1/candidates/accepted?page=1&page_size=50`, {
+    setError(null);
+    setData(null);
+    fetch(`${BASE_URL}/api/v1/candidates/${selectedJob.id}/accepted?page=1&page_size=50`, {
       headers: authHeaders(),
     })
       .then(r => { if (!r.ok) throw new Error(`Error ${r.status}`); return r.json() as Promise<ShortlistedResponse>; })
       .then(setData)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedJob]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Shortlisted Candidates</h1>
           <p className="text-text-secondary text-sm mt-0.5">
-            Candidates accepted across all job descriptions.
+            Accepted candidates for the selected job description.
           </p>
         </div>
         {data && (
           <Badge variant="success" className="text-sm px-3 py-1">
             {data.total} Shortlisted
           </Badge>
+        )}
+      </div>
+
+      {/* Job dropdown */}
+      <div className="relative w-full max-w-sm">
+        <button
+          onClick={() => setDropdownOpen(o => !o)}
+          disabled={jobsLoading}
+          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-text-primary hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          <span className="flex items-center gap-2 truncate">
+            <Briefcase size={14} className="text-primary-600 flex-shrink-0" />
+            {jobsLoading ? 'Loading jobs…' : selectedJob ? selectedJob.title : 'Select a job'}
+          </span>
+          <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {dropdownOpen && jobs.length > 0 && (
+          <div className="absolute z-20 mt-1 w-full bg-white border border-border rounded-xl shadow-lg max-h-60 overflow-y-auto">
+            {jobs.map(job => (
+              <button
+                key={job.id}
+                onClick={() => { setSelectedJob(job); setDropdownOpen(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                  selectedJob?.id === job.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-text-primary'
+                }`}
+              >
+                {job.title}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -86,7 +148,7 @@ export function ShortlistedCandidates() {
       {!loading && !error && data?.items.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <Users size={40} className="text-gray-300 mb-3" />
-          <p className="text-text-secondary text-sm">No shortlisted candidates yet.</p>
+          <p className="text-text-secondary text-sm">No shortlisted candidates for this job.</p>
         </div>
       )}
 
@@ -121,7 +183,7 @@ export function ShortlistedCandidates() {
                   {/* Job info */}
                   <div className="flex items-center gap-1.5 text-xs text-text-secondary mb-3">
                     <Briefcase size={12} className="flex-shrink-0" />
-                    <span className="truncate capitalize">{c.job_title}</span>
+                    <span className="truncate capitalize">{c.job_title || selectedJob?.title}</span>
                   </div>
 
                   {/* Stats */}

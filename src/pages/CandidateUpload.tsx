@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Upload, FileText, Brain,
+  Upload, FileText,
   CheckCircle2, AlertCircle, Clock, X,
   ChevronDown, Briefcase, Search, Loader2, Send,
   Trophy, Eye, Users, ArrowLeft,
@@ -52,6 +52,7 @@ interface ProcessingStatus {
 interface Resume {
   id: string;
   filename?: string;
+  original_filename?: string;
   candidate_name?: string;
   name?: string;
   email?: string;
@@ -98,6 +99,9 @@ export function CandidateUpload() {
   const [submitted, setSubmitted] = useState(false);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [resumesLoading, setResumesLoading] = useState(false);
+  const [resumePage, setResumePage] = useState(1);
+  const [resumeTotal, setResumeTotal] = useState(0);
+  const RESUME_PAGE_SIZE = 10;
   const [processingData, setProcessingData] = useState<ProcessingStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -106,15 +110,20 @@ export function CandidateUpload() {
   const selectedJdIdRef = useRef<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const fetchResumes = useCallback(async (jdId: string) => {
+  const fetchResumes = useCallback(async (jdId: string, page = 1) => {
     setResumesLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/resumes/${jdId}`, { headers: authHeaders() });
+      const params = new URLSearchParams({ page: String(page), page_size: String(10) });
+      const res = await fetch(`${BASE_URL}/api/v1/resumes/${jdId}?${params}`, { headers: authHeaders() });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setResumes(Array.isArray(data) ? data : (data.items ?? data.data ?? []));
+      const items = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+      setResumes(items);
+      setResumeTotal(data.total ?? items.length);
+      setResumePage(page);
     } catch {
       setResumes([]);
+      setResumeTotal(0);
     } finally {
       setResumesLoading(false);
     }
@@ -168,24 +177,31 @@ export function CandidateUpload() {
       .finally(() => setRatingsLoading(false));
   }, [activeTab, selectedJD]);
 
-  // When a JD is selected, check its status first
+  // When a JD is selected, fetch resumes immediately and check status in parallel
   useEffect(() => {
     selectedJdIdRef.current = selectedJD?.id ?? null;
     clearInterval(pollIntervalRef.current);
     setIsPolling(false);
     setProcessingData(null);
     setResumes([]);
+    setResumePage(1);
+    setResumeTotal(0);
     if (!selectedJD) return;
 
+    // Always load resumes right away
+    fetchResumes(selectedJD.id, 1);
+
+    // Check status to show processing progress if still running
     fetch(`${BASE_URL}/api/v1/dashboard/${selectedJD.id}/status`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then((data: ProcessingStatus | null) => {
-        if (!data) { fetchResumes(selectedJD.id); return; }
+        if (!data) return;
         setProcessingData(data);
-        if (data.status === 'completed') fetchResumes(selectedJD.id);
-        else startPolling(selectedJD.id);
+        if (data.status !== 'completed' && data.status !== 'failed') {
+          startPolling(selectedJD.id);
+        }
       })
-      .catch(() => fetchResumes(selectedJD.id));
+      .catch(() => {});
   }, [selectedJD, fetchResumes, startPolling]);
 
   // Cleanup interval on unmount
@@ -458,11 +474,6 @@ export function CandidateUpload() {
               )}
             </AnimatePresence>
           </div>
-
-          <Button onClick={() => navigate('/dashboard/ai-processing')} className="gap-2">
-            <Brain size={15} />
-            Analyze All
-          </Button>
         </div>
       </div>
 
@@ -812,7 +823,7 @@ export function CandidateUpload() {
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-1.5 text-xs text-text-secondary">
                               <FileText size={13} className="text-primary-600" />
-                              <span className="truncate max-w-[160px]">{r.filename ?? '—'}</span>
+                              <span className="truncate max-w-[160px]">{r.original_filename ?? r.filename ?? '—'}</span>
                             </div>
                           </td>
                           <td className="px-6 py-3">
@@ -827,7 +838,13 @@ export function CandidateUpload() {
                           </td>
                           <td className="px-6 py-3">
                             <span className="text-xs text-text-secondary">
-                              {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+                              {r.created_at
+                              ? new Date(r.created_at).toLocaleString('en-IN', {
+                                  timeZone: 'Asia/Kolkata',
+                                  day: '2-digit', month: 'short', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit', hour12: true,
+                                })
+                              : '—'}
                             </span>
                           </td>
                         </motion.tr>
@@ -836,6 +853,56 @@ export function CandidateUpload() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {resumeTotal > 10 && (
+              <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+                <p className="text-xs text-text-secondary">
+                  Showing {((resumePage - 1) * 10) + 1}–{Math.min(resumePage * 10, resumeTotal)} of {resumeTotal} resumes
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => fetchResumes(selectedJD!.id, resumePage - 1)}
+                    disabled={resumePage === 1 || resumesLoading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-secondary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.ceil(resumeTotal / 10) }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === Math.ceil(resumeTotal / 10) || Math.abs(p - resumePage) <= 1)
+                    .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, i) =>
+                      p === '...' ? (
+                        <span key={`ellipsis-${i}`} className="px-2 text-xs text-text-secondary">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => fetchResumes(selectedJD!.id, p as number)}
+                          disabled={resumesLoading}
+                          className={`w-8 h-8 text-xs font-medium rounded-lg transition-colors ${
+                            resumePage === p
+                              ? 'bg-primary-600 text-white'
+                              : 'border border-border text-text-secondary hover:bg-gray-50'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                  <button
+                    onClick={() => fetchResumes(selectedJD!.id, resumePage + 1)}
+                    disabled={resumePage >= Math.ceil(resumeTotal / 10) || resumesLoading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-secondary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

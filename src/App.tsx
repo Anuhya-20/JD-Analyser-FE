@@ -32,12 +32,24 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 function isAuthenticated() {
-  return localStorage.getItem('talentiq_auth') === 'true';
+  return (
+    localStorage.getItem('talentiq_auth') === 'true' &&
+    !!localStorage.getItem('talentiq_auth_token')
+  );
 }
 
+// Redirects unauthenticated users to /login
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
+// Redirects already-authenticated users away from public pages (login, signup, etc.)
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  if (isAuthenticated()) {
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 }
@@ -55,9 +67,9 @@ export default function App() {
               : <Navigate to="/login" replace />
           }
         />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+        <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
         <Route
           path="/dashboard"
