@@ -36,16 +36,21 @@ export function JobDescription() {
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [activeJobs, setActiveJobs] = useState<Record<string, boolean>>({});
   const [togglingJobs, setTogglingJobs] = useState<Record<string, boolean>>({});
+  const [jobsPage, setJobsPage] = useState(1);
+  const [jobsTotal, setJobsTotal] = useState(0);
+  const JOBS_PAGE_SIZE = 10;
 
-  const fetchJobs = useCallback(async () => {
+  const fetchJobs = useCallback(async (page = 1) => {
     setJobsLoading(true);
     setJobsError(null);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/jobs?active_only=false&page=1&page_size=50`, { headers: authHeaders() });
+      const res = await fetch(`${BASE_URL}/api/v1/jobs?active_only=false&page=${page}&page_size=${JOBS_PAGE_SIZE}`, { headers: authHeaders() });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
       const list: Job[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
       setJobs(list);
+      setJobsPage(page);
+      setJobsTotal(data.total ?? list.length);
       setActiveJobs(Object.fromEntries(list.map(j => [j.id, j.is_active ?? j.status === 'Active'])));
     } catch (err) {
       setJobsError(err instanceof Error ? err.message : 'Failed to load jobs');
@@ -108,7 +113,7 @@ export function JobDescription() {
         throw new Error(msg || `Error ${res.status}`);
       }
 
-      fetchJobs();
+      fetchJobs(1);
       setJobTitle('');
       setFile(null);
       setPastedText('');
@@ -259,55 +264,107 @@ export function JobDescription() {
           ) : jobs.length === 0 ? (
             <p className="text-center py-10 text-sm text-text-secondary">No job descriptions found.</p>
           ) : (
-            jobs.map((job) => (
-              <div key={job.id} className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Briefcase size={18} className="text-primary-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-text-primary">{job.title}</p>
-                  <p className="text-xs text-text-secondary">
-                    {job.company_name ?? '—'}
-                    {job.candidates_count != null ? ` · ${job.candidates_count} candidates` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {togglingJobs[job.id] ? (
-                    <Loader2 size={16} className="animate-spin text-text-secondary" />
-                  ) : (
-                    <button
-                      onClick={() => toggleActive(job.id, activeJobs[job.id])}
-                      className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
-                        activeJobs[job.id] ? 'btn-gradient' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-                          activeJobs[job.id] ? 'translate-x-4' : 'translate-x-0'
+            <>
+              {jobs.map((job) => (
+                <div key={job.id} className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-gray-50 transition-colors">
+                  <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Briefcase size={18} className="text-primary-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-text-primary">{job.title}</p>
+                    <p className="text-xs text-text-secondary">
+                      {job.company_name ?? '—'}
+                      {job.candidates_count != null ? ` · ${job.candidates_count} candidates` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {togglingJobs[job.id] ? (
+                      <Loader2 size={16} className="animate-spin text-text-secondary" />
+                    ) : (
+                      <button
+                        onClick={() => toggleActive(job.id, activeJobs[job.id])}
+                        className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
+                          activeJobs[job.id] ? 'btn-gradient' : 'bg-gray-300'
                         }`}
-                      />
-                    </button>
-                  )}
-                  <span className={`text-xs font-medium w-12 ${activeJobs[job.id] ? 'text-primary-600' : 'text-gray-400'}`}>
-                    {activeJobs[job.id] ? 'Active' : 'Inactive'}
-                  </span>
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                            activeJobs[job.id] ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <span className={`text-xs font-medium w-12 ${activeJobs[job.id] ? 'text-primary-600' : 'text-gray-400'}`}>
+                      {activeJobs[job.id] ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/dashboard/jobs/${job.id}`)}
+                    className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-colors"
+                  >
+                    <FileText size={12} />
+                    View JD
+                  </button>
+                  <button
+                    onClick={() => navigate(`/dashboard/candidates?jd_id=${job.id}&tab=rankings`)}
+                    className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-colors"
+                  >
+                    <Eye size={12} />
+                    View Results
+                  </button>
                 </div>
-                <button
-                  onClick={() => navigate(`/dashboard/jobs/${job.id}`)}
-                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-colors"
-                >
-                  <FileText size={12} />
-                  View JD
-                </button>
-                <button
-                  onClick={() => navigate(`/dashboard/candidates?jd_id=${job.id}&tab=rankings`)}
-                  className="text-xs text-white font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gradient transition-colors"
-                >
-                  <Eye size={12} />
-                  View Results
-                </button>
-              </div>
-            ))
+              ))}
+
+              {/* Pagination */}
+              {jobsTotal > JOBS_PAGE_SIZE && (
+                <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+                  <p className="text-xs text-text-secondary">
+                    Showing {((jobsPage - 1) * JOBS_PAGE_SIZE) + 1}–{Math.min(jobsPage * JOBS_PAGE_SIZE, jobsTotal)} of {jobsTotal} jobs
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => fetchJobs(jobsPage - 1)}
+                      disabled={jobsPage === 1 || jobsLoading}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-secondary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: Math.ceil(jobsTotal / JOBS_PAGE_SIZE) }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === Math.ceil(jobsTotal / JOBS_PAGE_SIZE) || Math.abs(p - jobsPage) <= 1)
+                      .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        p === '...' ? (
+                          <span key={`ellipsis-${i}`} className="px-2 text-xs text-text-secondary">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => fetchJobs(p as number)}
+                            disabled={jobsLoading}
+                            className={`w-8 h-8 text-xs font-medium rounded-lg transition-colors ${
+                              jobsPage === p
+                                ? 'bg-primary-600 text-white'
+                                : 'border border-border text-text-secondary hover:bg-gray-50'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                    <button
+                      onClick={() => fetchJobs(jobsPage + 1)}
+                      disabled={jobsPage >= Math.ceil(jobsTotal / JOBS_PAGE_SIZE) || jobsLoading}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-secondary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

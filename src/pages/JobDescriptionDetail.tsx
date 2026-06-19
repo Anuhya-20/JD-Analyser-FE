@@ -4,10 +4,9 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, Briefcase, Building2, Users, Star,
   GraduationCap, Clock, Award,
-  CheckCircle2, Layers, Target, Loader2,
+  CheckCircle2, Layers, Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { BASE_URL, authHeaders } from '@/lib/api';
 
@@ -106,7 +105,6 @@ export function JobDescriptionDetail() {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <h1 className="text-xl font-bold text-text-primary">{job.title}</h1>
-                  {job.status && <Badge variant="success">{job.status}</Badge>}
                   {job.department && (
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${deptClass}`}>
                       {job.department}
@@ -134,28 +132,6 @@ export function JobDescriptionDetail() {
               </div>
             </div>
 
-            {/* Stats strip */}
-            {(job.min_years_experience != null || job.candidates_count != null || job.top_match != null) && (
-              <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border">
-                {[
-                  job.min_years_experience != null && {
-                    label: 'Experience Required',
-                    value: `${job.min_years_experience}${job.max_years_experience != null ? `–${job.max_years_experience}` : '+'} yrs`,
-                    icon: Clock,  color: 'text-primary-600', bg: 'bg-primary-50',
-                  },
-                  job.candidates_count != null && { label: 'Total Candidates', value: `${job.candidates_count} Applied`, icon: Users,  color: 'text-violet-600',  bg: 'bg-violet-50'  },
-                  job.top_match        != null && { label: 'Top Match Score',   value: `${job.top_match}%`,               icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                ].filter(Boolean).map((item: any, i) => (
-                  <div key={i} className={`${item.bg} rounded-xl p-4 flex items-center gap-3`}>
-                    <div className={item.color}><item.icon size={20} /></div>
-                    <div>
-                      <p className="text-xs text-text-secondary">{item.label}</p>
-                      <p className={`text-sm font-bold ${item.color} mt-0.5`}>{item.value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </CardContent>
         </Card>
       </motion.div>

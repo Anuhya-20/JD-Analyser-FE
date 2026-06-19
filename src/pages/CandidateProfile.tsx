@@ -17,6 +17,7 @@ import { toast } from '@/components/ui/Toast';
 interface CandidateRating {
   id: string;
   candidate_id?: string;
+  full_name?: string | null;
   candidate_name?: string;
   name?: string;
   email?: string;
@@ -113,7 +114,7 @@ export function CandidateProfile() {
     );
   }
 
-  const name         = candidate.candidate_name ?? candidate.name ?? '—';
+  const name         = candidate.full_name ?? candidate.candidate_name ?? candidate.name ?? '—';
   const role         = candidate.role ?? candidate.current_title ?? '';
   const matchScore   = candidate.match_score   ?? candidate.overall_score  ?? 0;
   const skillScore   = candidate.skill_score   ?? candidate.skills_score   ?? 0;
@@ -160,7 +161,7 @@ export function CandidateProfile() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-start gap-5">
-            <Avatar initials={name.slice(0, 2).toUpperCase()} size="xl" />
+            <Avatar initials={name !== '—' ? name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?' : '?'} size="xl" />
             <div className="flex-1">
               <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
@@ -244,18 +245,31 @@ export function CandidateProfile() {
       {allSkills.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Skills Match</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {allSkills.map(({ skill, matched }) => (
-                <div key={skill} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-                  <span className="text-sm text-text-primary">{skill}</span>
-                  {matched
-                    ? <span className="flex items-center gap-1 text-xs font-medium text-emerald-600"><CheckCircle2 size={13} /> Matched</span>
-                    : <span className="flex items-center gap-1 text-xs font-medium text-red-500"><XCircle size={13} /> Missing</span>
-                  }
+          <CardContent className="space-y-4">
+            {allSkills.some(s => s.matched) && (
+              <div>
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Matched</p>
+                <div className="flex flex-wrap gap-2">
+                  {allSkills.filter(s => s.matched).map(({ skill }) => (
+                    <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 size={11} /> {skill}
+                    </span>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            {allSkills.some(s => !s.matched) && (
+              <div>
+                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Missing</p>
+                <div className="flex flex-wrap gap-2">
+                  {allSkills.filter(s => !s.matched).map(({ skill }) => (
+                    <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                      <XCircle size={11} /> {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
