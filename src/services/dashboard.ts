@@ -5,6 +5,7 @@ export interface WeeklyActivity {
   date: string;
   resumes: number;
   matches: number;
+  shortlisted: number;
 }
 
 export interface PipelineStage {

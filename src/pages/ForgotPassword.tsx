@@ -14,11 +14,10 @@ const emailSchema = z.object({
 });
 
 const resetSchema = z.object({
-  password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/^[A-Z]/, 'Password must start with a capital letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/, 'Password must contain at least one special character'),
+  password: z.string().refine(
+    val => val.length >= 8 && /[A-Z]/.test(val) && /[0-9]/.test(val) && /[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/.test(val),
+    'Password must be at least 8 characters, a capital letter, and include a special character.'
+  ),
   confirm: z.string(),
 }).refine(d => d.password === d.confirm, {
   message: "Passwords don't match",
@@ -485,7 +484,7 @@ export function ForgotPassword() {
                   {/* Password rules hint */}
                   <div style={{ marginBottom: 22, padding: '10px 14px', borderRadius: 10, background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
                     <p style={{ fontSize: 12, color: '#0369A1', lineHeight: 1.7, margin: 0 }}>
-                      Password must be at least 8 characters, start with a capital letter, and include a special character.
+                      Password must be at least 8 characters,  a capital letter, and include a special character.
                     </p>
                   </div>
 

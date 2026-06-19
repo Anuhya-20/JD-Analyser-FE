@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Code, Users, Lightbulb,
-  Sparkles, RefreshCw, Loader2, AlertTriangle, MessageSquare,
+  Code, Users, Lightbulb, Briefcase,
+  Sparkles, RefreshCw, Loader2, AlertTriangle, MessageSquare, ChevronDown,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -11,11 +11,12 @@ import { Avatar } from '@/components/ui/Avatar';
 import { BASE_URL, authHeaders } from '@/lib/api';
 import { toast } from '@/components/ui/Toast';
 
-/* ── Shortlisted candidates types ───────────────────────── */
+interface Job { id: string; title: string; }
+
 interface ShortlistedCandidate {
   candidate_profile_id: string;
   full_name: string | null;
-  email: string;
+  email: string | null;
   total_years_experience: number;
   overall_score: number;
   rank: number;
@@ -29,13 +30,9 @@ interface ShortlistedResponse {
   total: number;
 }
 
-/* ── Interview API types ─────────────────────────────────── */
 interface ApiQuestion {
-  question?: string;
-  q?: string;
-  text?: string;
-  difficulty?: string;
-  tags?: string[];
+  question?: string; q?: string; text?: string;
+  difficulty?: string; tags?: string[];
   [key: string]: unknown;
 }
 
@@ -55,67 +52,47 @@ function normalize(item: ApiQuestion | string | unknown): NormalizedQuestion {
 }
 
 function labelFromKey(key: string): string {
-  return key
-    .replace(/_/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/\b\w/g, c => c.toUpperCase());
+  return key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-const SECTION_ICONS: Record<string, React.ReactNode> = {
-  technical:  <Code size={15} />,
-  behavioral: <Users size={15} />,
-  scenario:   <Sparkles size={15} />,
-  situational:<Sparkles size={15} />,
-};
-const SECTION_COLORS: Record<string, string> = {
-  technical:  'text-primary-600',
-  behavioral: 'text-emerald-600',
-  scenario:   'text-violet-600',
-  situational:'text-violet-600',
-};
-
-function iconFor(key: string) {
-  return SECTION_ICONS[key.toLowerCase()] ?? <MessageSquare size={15} />;
-}
-function colorFor(key: string) {
-  return SECTION_COLORS[key.toLowerCase()] ?? 'text-primary-600';
-}
-
-/* ── Extract all renderable sections from ANY API response── */
 function parseSections(raw: unknown): { key: string; title: string; questions: NormalizedQuestion[] }[] {
   if (!raw || typeof raw !== 'object') return [];
-
   const sections: { key: string; title: string; questions: NormalizedQuestion[] }[] = [];
-
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!Array.isArray(value) || value.length === 0) continue;
     const questions = (value as unknown[]).map(normalize).filter(q => q.q.trim() !== '');
-    if (questions.length > 0) {
-      sections.push({ key, title: labelFromKey(key), questions });
-    }
+    if (questions.length > 0) sections.push({ key, title: labelFromKey(key), questions });
   }
-
   return sections;
 }
 
-const difficultyColors: Record<string, string> = {
-  Easy:   'text-emerald-600 bg-emerald-50',
-  Medium: 'text-amber-600 bg-amber-50',
-  Hard:   'text-red-600 bg-red-50',
-};
-
-function getInitials(name: string | null, email: string) {
-  if (name) return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
-  return email.slice(0, 2).toUpperCase();
+function getInitials(name: string | null, email: string | null) {
+  if (name) return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+  if (email) return email.slice(0, 2).toUpperCase();
+  return '?';
 }
 
-/* ── QuestionCard ───────────────────────────────────────── */
+const SECTION_ICONS: Record<string, React.ReactNode> = {
+  technical: <Code size={15} />, behavioral: <Users size={15} />,
+  scenario: <Sparkles size={15} />, situational: <Sparkles size={15} />,
+};
+const SECTION_COLORS: Record<string, string> = {
+  technical: 'text-primary-600', behavioral: 'text-emerald-600',
+  scenario: 'text-violet-600', situational: 'text-violet-600',
+};
+function iconFor(key: string) { return SECTION_ICONS[key.toLowerCase()] ?? <MessageSquare size={15} />; }
+function colorFor(key: string) { return SECTION_COLORS[key.toLowerCase()] ?? 'text-primary-600'; }
+
+const difficultyColors: Record<string, string> = {
+  Easy: 'text-emerald-600 bg-emerald-50',
+  Medium: 'text-amber-600 bg-amber-50',
+  Hard: 'text-red-600 bg-red-50',
+};
+
 function QuestionCard({ q, difficulty, tags, index }: { q: string; difficulty: string; tags: string[]; index: number }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04 }}
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}
       className="border border-border rounded-xl p-4 hover:shadow-card-hover transition-all"
     >
       <div className="flex items-start justify-between gap-3">
@@ -133,42 +110,64 @@ function QuestionCard({ q, difficulty, tags, index }: { q: string; difficulty: s
   );
 }
 
-/* ── Main component ─────────────────────────────────────── */
 export function InterviewQuestions() {
+  /* Job selector */
+  const [jobs, setJobs]               = useState<Job[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  /* Candidates */
   const [candidates, setCandidates]               = useState<ShortlistedCandidate[]>([]);
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [fetchError, setFetchError]               = useState<string | null>(null);
   const [selectedId, setSelectedId]               = useState<string | null>(null);
-  const [generating, setGenerating]               = useState(false);
-  const [generated, setGenerated]                 = useState(false);
-  const [generateError, setGenerateError]         = useState<string | null>(null);
-  const [sections, setSections]                   = useState<{ key: string; title: string; questions: NormalizedQuestion[] }[]>([]);
 
-  /* Fetch shortlisted candidates */
+  /* Questions */
+  const [generating, setGenerating]       = useState(false);
+  const [generated, setGenerated]         = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [sections, setSections]           = useState<{ key: string; title: string; questions: NormalizedQuestion[] }[]>([]);
+
+  /* Fetch job list on mount */
   useEffect(() => {
-    fetch(`${BASE_URL}/api/v1/candidates/accepted?page=1&page_size=50`, {
-      headers: authHeaders(),
-    })
+    fetch(`${BASE_URL}/api/v1/jobs/titles?page=1&page_size=50`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setJobs(Array.isArray(data) ? data : (data.items ?? data.data ?? [])))
+      .finally(() => setJobsLoading(false));
+  }, []);
+
+  /* Fetch accepted candidates when job is selected */
+  useEffect(() => {
+    if (!selectedJob) return;
+    setLoadingCandidates(true);
+    setFetchError(null);
+    setCandidates([]);
+    setSelectedId(null);
+    setGenerated(false);
+    setSections([]);
+    fetch(`${BASE_URL}/api/v1/candidates/accepted?jd_id=${selectedJob.id}&page=1&page_size=50`, { headers: authHeaders() })
       .then(r => { if (!r.ok) throw new Error(`Error ${r.status}`); return r.json() as Promise<ShortlistedResponse>; })
       .then(data => {
-        setCandidates(data.items ?? []);
-        if ((data.items ?? []).length > 0) setSelectedId(data.items[0].candidate_profile_id);
+        const items = data.items ?? [];
+        setCandidates(items);
+        if (items.length > 0) setSelectedId(items[0].candidate_profile_id);
       })
       .catch((err: Error) => setFetchError(err.message))
       .finally(() => setLoadingCandidates(false));
-  }, []);
+  }, [selectedJob]);
 
   const selected = candidates.find(c => c.candidate_profile_id === selectedId) ?? null;
 
   const handleGenerate = async () => {
-    if (!selected) return;
+    if (!selected || !selectedJob) return;
     setGenerating(true);
     setGenerated(false);
     setGenerateError(null);
     setSections([]);
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/interview/${selected.jd_id}/${selected.candidate_profile_id}`,
+        `${BASE_URL}/api/v1/interview/${selectedJob.id}/${selected.candidate_profile_id}`,
         { method: 'POST', headers: authHeaders() }
       );
       if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -190,102 +189,135 @@ export function InterviewQuestions() {
       <div>
         <h1 className="text-2xl font-bold text-text-primary">AI Interview Question Generator</h1>
         <p className="text-text-secondary text-sm mt-0.5">
-          Tailored interview questions generated based on shortlisted candidate profiles.
+          Select a job, then pick an accepted candidate to generate tailored interview questions.
         </p>
       </div>
 
-      {/* Candidates fetch error */}
-      {fetchError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
-          <AlertTriangle size={15} /> Failed to load candidates: {fetchError}
-        </div>
-      )}
-
-      {/* Candidate selector */}
+      {/* Job selector */}
       <Card>
-        <CardHeader><CardTitle>Select Shortlisted Candidate</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Select Job Description</CardTitle></CardHeader>
         <CardContent>
-          {loadingCandidates ? (
-            <div className="flex items-center gap-2 py-4 text-text-secondary text-sm">
-              <Loader2 size={16} className="animate-spin" /> Loading shortlisted candidates...
-            </div>
-          ) : candidates.length === 0 ? (
-            <p className="text-sm text-text-secondary py-4">
-              No shortlisted candidates found. Shortlist candidates from the rankings page first.
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-wrap gap-2">
-                {candidates.slice(0, 8).map(c => {
-                  const name     = c.full_name || c.email;
-                  const initials = getInitials(c.full_name, c.email);
-                  const active   = selectedId === c.candidate_profile_id;
-                  return (
-                    <button
-                      key={c.candidate_profile_id}
-                      onClick={() => {
-                        setSelectedId(c.candidate_profile_id);
-                        setGenerated(false);
-                        setSections([]);
-                        setGenerateError(null);
-                      }}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                        active
-                          ? 'bg-primary-50 border-primary-300 text-primary-700'
-                          : 'border-border text-text-secondary hover:bg-gray-50'
-                      }`}
-                    >
-                      <Avatar initials={initials} size="sm" />
-                      <span className="truncate max-w-[120px]">{name}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen(v => !v)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-2.5 border border-border rounded-lg text-sm hover:bg-gray-50 transition-colors"
+            >
+              <span className="flex items-center gap-2 truncate text-text-primary">
+                <Briefcase size={14} className="text-text-secondary flex-shrink-0" />
+                {selectedJob ? selectedJob.title : <span className="text-text-secondary">Select a job...</span>}
+              </span>
+              <ChevronDown size={14} className={`text-text-secondary flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-              {selected && (
-                <div className="mt-4 flex items-center gap-4">
-                  <Avatar initials={getInitials(selected.full_name, selected.email)} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-text-primary truncate">
-                      {selected.full_name || selected.email}
-                    </p>
-                    <p className="text-xs text-text-secondary">
-                      {selected.overall_score.toFixed(1)}% match
-                      &nbsp;&middot;&nbsp;
-                      {selected.total_years_experience} yrs exp
-                      &nbsp;&middot;&nbsp;
-                      <span className="capitalize">{selected.job_title}</span>
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleGenerate}
-                    loading={generating}
-                    variant="secondary"
-                    size="sm"
-                    className="ml-auto gap-1.5 flex-shrink-0"
+            <AnimatePresence>
+              {dropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-xl shadow-lg z-20 max-h-56 overflow-y-auto"
                   >
-                    <RefreshCw size={13} />
-                    {generating ? 'Generating...' : generated ? 'Regenerate' : 'Generate Questions'}
-                  </Button>
-                </div>
+                    {jobsLoading ? (
+                      <div className="flex items-center gap-2 px-4 py-3 text-sm text-text-secondary">
+                        <Loader2 size={14} className="animate-spin" /> Loading jobs...
+                      </div>
+                    ) : jobs.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-text-secondary">No jobs found.</p>
+                    ) : jobs.map(j => (
+                      <button
+                        key={j.id}
+                        onClick={() => { setSelectedJob(j); setDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedJob?.id === j.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-text-primary hover:bg-gray-50'}`}
+                      >
+                        {j.title}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
               )}
-            </>
-          )}
+            </AnimatePresence>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Candidate selector */}
+      {selectedJob && (
+        <Card>
+          <CardHeader><CardTitle>Select Accepted Candidate</CardTitle></CardHeader>
+          <CardContent>
+            {loadingCandidates ? (
+              <div className="flex items-center gap-2 py-4 text-text-secondary text-sm">
+                <Loader2 size={16} className="animate-spin" /> Loading candidates...
+              </div>
+            ) : fetchError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+                <AlertTriangle size={15} /> {fetchError}
+              </div>
+            ) : candidates.length === 0 ? (
+              <p className="text-sm text-text-secondary py-2">No accepted candidates for this job.</p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {candidates.slice(0, 8).map(c => {
+                    const active = selectedId === c.candidate_profile_id;
+                    return (
+                      <button
+                        key={c.candidate_profile_id}
+                        onClick={() => { setSelectedId(c.candidate_profile_id); setGenerated(false); setSections([]); setGenerateError(null); }}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${active ? 'bg-primary-50 border-primary-300 text-primary-700' : 'border-border text-text-secondary hover:bg-gray-50'}`}
+                      >
+                        <Avatar initials={getInitials(c.full_name, c.email)} size="sm" />
+                        <span className="truncate max-w-[120px]">{c.full_name || c.email || '—'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selected && (
+                  <div className="mt-4 flex items-center gap-4">
+                    <Avatar initials={getInitials(selected.full_name, selected.email)} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-text-primary truncate">
+                        {selected.full_name || selected.email || '—'}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {selected.overall_score.toFixed(1)}% match
+                        &nbsp;&middot;&nbsp;
+                        {selected.total_years_experience} yrs exp
+                        &nbsp;&middot;&nbsp;
+                        <span className="capitalize">{selected.job_title}</span>
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleGenerate}
+                      loading={generating}
+                      variant="secondary"
+                      size="sm"
+                      className="ml-auto gap-1.5 flex-shrink-0"
+                    >
+                      <RefreshCw size={13} />
+                      {generating ? 'Generating...' : generated ? 'Regenerate' : 'Generate Questions'}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Generate error */}
       {generateError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
-          <AlertTriangle size={15} /> Failed to generate questions: {generateError}
+          <AlertTriangle size={15} /> {generateError}
         </div>
       )}
 
-      {/* Questions — rendered dynamically from API response keys */}
+      {/* Questions */}
       <AnimatePresence>
         {generated && selected && sections.length > 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            {/* Context banner */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
               <Lightbulb size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
@@ -304,7 +336,6 @@ export function InterviewQuestions() {
               </div>
             </div>
 
-            {/* One card per section returned by the API */}
             {sections.map(section => (
               <Card key={section.key}>
                 <CardHeader className="flex flex-row items-center gap-2 py-3">
@@ -312,20 +343,16 @@ export function InterviewQuestions() {
                   <CardTitle>{section.title} ({section.questions.length})</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {section.questions.map((q, i) => (
-                    <QuestionCard key={i} {...q} index={i} />
-                  ))}
+                  {section.questions.map((q, i) => <QuestionCard key={i} {...q} index={i} />)}
                 </CardContent>
               </Card>
             ))}
           </motion.div>
         )}
 
-        {/* API responded but no question arrays found */}
         {generated && sections.length === 0 && !generateError && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-6 text-center"
           >
             <Lightbulb className="mx-auto text-amber-400 mb-2" size={24} />

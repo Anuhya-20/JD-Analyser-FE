@@ -10,7 +10,7 @@ interface ShortlistedCandidate {
   candidate_profile_id: string;
   resume_id: string;
   full_name: string | null;
-  email: string;
+  email: string | null;
   location: string | null;
   total_years_experience: number;
   overall_score: number;
@@ -29,9 +29,10 @@ interface ShortlistedResponse {
   pages: number;
 }
 
-function getInitials(name: string | null, email: string) {
-  if (name) return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
-  return email.slice(0, 2).toUpperCase();
+function getInitials(name: string | null, email: string | null) {
+  if (name) return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+  if (email) return email.slice(0, 2).toUpperCase();
+  return '?';
 }
 
 export function ShortlistedCandidates() {
@@ -93,7 +94,7 @@ export function ShortlistedCandidates() {
       {!loading && data && data.items.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {data.items.map((c, i) => {
-            const displayName = c.full_name || c.email;
+            const displayName = c.full_name || c.email || 'Unknown';
             const initials    = getInitials(c.full_name, c.email);
             const scoreColor  = c.overall_score >= 70 ? 'text-emerald-600' : c.overall_score >= 50 ? 'text-amber-600' : 'text-red-500';
 

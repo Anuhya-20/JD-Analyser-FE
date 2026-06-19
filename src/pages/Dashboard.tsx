@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { getDashboardOverview, type DashboardOverview } from '@/services/dashboard';
+import { toast } from '@/components/ui/Toast';
 
 const PIPELINE_COLORS: Record<string, string> = {
   Applied: '#818CF8',
@@ -119,6 +120,14 @@ export function Dashboard() {
   const userName = getStoredUserName();
 
   useEffect(() => {
+    const msg = sessionStorage.getItem('welcome_toast');
+    if (msg) {
+      sessionStorage.removeItem('welcome_toast');
+      toast.success(msg);
+    }
+  }, []);
+
+  useEffect(() => {
     getDashboardOverview()
       .then(setData)
       .catch((err: Error) => setError(err.message))
@@ -173,7 +182,6 @@ export function Dashboard() {
                     {kpi.label === 'Avg Match Score' && '%'}
                   </p>
                   <p className="text-xs text-text-secondary font-medium">{kpi.label}</p>
-                  <p className="text-xs text-text-secondary mt-0.5">{kpi.sub}</p>
                 </Card>
               </motion.div>
             ))}
@@ -192,6 +200,9 @@ export function Dashboard() {
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Matches
               </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Shortlisted
+              </span>
             </div>
           </CardHeader>
           <CardContent>
@@ -209,6 +220,10 @@ export function Dashboard() {
                       <stop offset="5%" stopColor="#10B981" stopOpacity={0.12} />
                       <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                     </linearGradient>
+                    <linearGradient id="shortlistedGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
@@ -216,6 +231,7 @@ export function Dashboard() {
                   <Tooltip contentStyle={{ border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px' }} />
                   <Area type="monotone" dataKey="resumes" stroke="#2563EB" strokeWidth={2} fill="url(#resumeGrad)" />
                   <Area type="monotone" dataKey="matches" stroke="#10B981" strokeWidth={2} fill="url(#matchGrad)" />
+                  <Area type="monotone" dataKey="shortlisted" stroke="#F59E0B" strokeWidth={2} fill="url(#shortlistedGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
