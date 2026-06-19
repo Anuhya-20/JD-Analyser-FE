@@ -821,8 +821,8 @@ export function CandidateUpload() {
                             </Badge>
                           </td>
                           <td className="px-6 py-3">
-                            {r.match_score != null
-                              ? <span className="text-sm font-semibold text-primary-600">{r.match_score}%</span>
+                            {(r.overall_score ?? r.match_score) != null
+                              ? <span className="text-sm font-semibold text-primary-600">{(r.overall_score ?? r.match_score ?? 0).toFixed(1)}%</span>
                               : <span className="text-xs text-text-secondary">—</span>}
                           </td>
                           <td className="px-6 py-3">

@@ -1,15 +1,16 @@
 ﻿import { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 import {
   Upload, FileText, Brain, CheckCircle2, X,
-  Briefcase, GraduationCap, Award, Clock, ChevronRight, Eye, Loader2,
+  Briefcase, Eye, Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { BASE_URL, authHeaders } from '@/lib/api';
+import { toast } from '@/components/ui/Toast';
 
 interface Job {
   id: string;
@@ -20,27 +21,13 @@ interface Job {
   candidates_count?: number;
 }
 
-interface CreatedJob {
-  id: string;
-  title: string;
-  required_skills?: string[] | null;
-  preferred_skills?: string[] | null;
-  min_years_experience?: number | null;
-  max_years_experience?: number | null;
-  experience_level?: string | null;
-  education_requirements?: string | null;
-  certifications?: string[] | null;
-}
-
 export function JobDescription() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<'upload' | 'paste'>('upload');
   const [jobTitle, setJobTitle] = useState('');
   const [pastedText, setPastedText] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [analyzed, setAnalyzed] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [createdJob, setCreatedJob] = useState<CreatedJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contentTouched, setContentTouched] = useState(false);
 
@@ -121,10 +108,13 @@ export function JobDescription() {
         throw new Error(msg || `Error ${res.status}`);
       }
 
-      const created = await res.json().catch(() => null) as CreatedJob | null;
-      setCreatedJob(created);
-      setAnalyzed(true);
       fetchJobs();
+      setJobTitle('');
+      setFile(null);
+      setPastedText('');
+      setContentTouched(false);
+      setMode('upload');
+      toast.success('Job description uploaded successfully!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -252,130 +242,6 @@ export function JobDescription() {
 
       {/* Analysis Results */}
       <AnimatePresence>
-        {analyzed && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
-            <div className="flex items-center gap-2 text-emerald-600 font-medium">
-              <CheckCircle2 size={18} />
-              <span>Analysis complete! Extracted the following requirements.</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Required Skills */}
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <Brain size={14} className="text-primary-600" />
-                  </div>
-                  <CardTitle>Required Skills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {createdJob?.required_skills?.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {createdJob.required_skills.map(s => (
-                        <Badge key={s} variant="default" className="text-xs px-3 py-1">{s}</Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Preferred Skills */}
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
-                    <Award size={14} className="text-amber-600" />
-                  </div>
-                  <CardTitle>Preferred Skills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {createdJob?.preferred_skills?.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {createdJob.preferred_skills.map(s => (
-                        <Badge key={s} variant="warning" className="text-xs px-3 py-1">{s}</Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Experience */}
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
-                    <Clock size={14} className="text-emerald-600" />
-                  </div>
-                  <CardTitle>Experience Required</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {createdJob?.min_years_experience != null ? (
-                    <>
-                      <p className="text-2xl font-bold text-text-primary">
-                        {createdJob.min_years_experience}
-                        {createdJob.max_years_experience != null ? `–${createdJob.max_years_experience}` : '+'}
-                        {' '}Years
-                      </p>
-                      {createdJob.experience_level && (
-                        <p className="text-sm text-text-secondary mt-1">{createdJob.experience_level}</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Education */}
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-violet-50 rounded-lg flex items-center justify-center">
-                    <GraduationCap size={14} className="text-violet-600" />
-                  </div>
-                  <CardTitle>Education Required</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {createdJob?.education_requirements ? (
-                    <p className="text-sm font-semibold text-text-primary">{createdJob.education_requirements}</p>
-                  ) : (
-                    <p className="text-xs text-text-secondary">Pending AI extraction</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Certifications */}
-            {createdJob?.certifications?.length ? (
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
-                    <Award size={14} className="text-emerald-600" />
-                  </div>
-                  <CardTitle>Certifications</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {createdJob.certifications.map(c => (
-                      <Badge key={c} variant="success" className="text-xs px-3 py-1">{c}</Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null}
-
-            <div className="flex justify-end">
-              <Button onClick={() => navigate('/dashboard/candidates')} className="gap-2">
-                Upload Resumes <ChevronRight size={15} />
-              </Button>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       {/* Existing JDs */}

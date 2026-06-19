@@ -19,11 +19,14 @@ interface JobDetail {
   is_active?: boolean;
   description_text?: string;
   department?: string;
-  experience_required?: number;
-  education_required?: string;
+  experience_level?: string;
+  min_years_experience?: number | null;
+  max_years_experience?: number | null;
+  education_requirements?: string[] | string | null;
   required_skills?: string[];
   preferred_skills?: string[];
   certifications?: string[];
+  responsibilities?: string[];
   candidates_count?: number;
   top_match?: number;
 }
@@ -132,12 +135,16 @@ export function JobDescriptionDetail() {
             </div>
 
             {/* Stats strip */}
-            {(job.experience_required != null || job.candidates_count != null || job.top_match != null) && (
+            {(job.min_years_experience != null || job.candidates_count != null || job.top_match != null) && (
               <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border">
                 {[
-                  job.experience_required != null && { label: 'Experience Required', value: `${job.experience_required}+ years`, icon: Clock,  color: 'text-primary-600', bg: 'bg-primary-50' },
-                  job.candidates_count   != null && { label: 'Total Candidates',     value: `${job.candidates_count} Applied`,   icon: Users,  color: 'text-violet-600',  bg: 'bg-violet-50'  },
-                  job.top_match          != null && { label: 'Top Match Score',       value: `${job.top_match}%`,                 icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                  job.min_years_experience != null && {
+                    label: 'Experience Required',
+                    value: `${job.min_years_experience}${job.max_years_experience != null ? `–${job.max_years_experience}` : '+'} yrs`,
+                    icon: Clock,  color: 'text-primary-600', bg: 'bg-primary-50',
+                  },
+                  job.candidates_count != null && { label: 'Total Candidates', value: `${job.candidates_count} Applied`, icon: Users,  color: 'text-violet-600',  bg: 'bg-violet-50'  },
+                  job.top_match        != null && { label: 'Top Match Score',   value: `${job.top_match}%`,               icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 ].filter(Boolean).map((item: any, i) => (
                   <div key={i} className={`${item.bg} rounded-xl p-4 flex items-center gap-3`}>
                     <div className={item.color}><item.icon size={20} /></div>
@@ -176,47 +183,25 @@ export function JobDescriptionDetail() {
             </motion.div>
           )}
 
-          {/* Required Skills */}
-          {job.required_skills && job.required_skills.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13, duration: 0.4 }}>
+          {/* Responsibilities */}
+          {job.responsibilities && job.responsibilities.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.23, duration: 0.4 }}>
               <Card>
                 <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-primary-50 rounded-lg flex items-center justify-center">
-                    <CheckCircle2 size={14} className="text-primary-600" />
+                  <div className="w-7 h-7 bg-violet-50 rounded-lg flex items-center justify-center">
+                    <Layers size={14} className="text-violet-600" />
                   </div>
-                  <CardTitle>Required Skills</CardTitle>
+                  <CardTitle>Responsibilities</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {job.required_skills.map(skill => (
-                      <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-100">
-                        <CheckCircle2 size={11} /> {skill}
-                      </span>
+                  <ul className="space-y-2">
+                    {job.responsibilities.map((r, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-text-primary">
+                        <CheckCircle2 size={13} className="text-violet-500 mt-0.5 flex-shrink-0" />
+                        {r}
+                      </li>
                     ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Preferred Skills */}
-          {job.preferred_skills && job.preferred_skills.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, duration: 0.4 }}>
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-2 py-3">
-                  <div className="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
-                    <Star size={14} className="text-amber-600" />
-                  </div>
-                  <CardTitle>Preferred Skills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {job.preferred_skills.map(skill => (
-                      <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                        <Star size={11} /> {skill}
-                      </span>
-                    ))}
-                  </div>
+                  </ul>
                 </CardContent>
               </Card>
             </motion.div>
@@ -225,7 +210,7 @@ export function JobDescriptionDetail() {
 
         {/* Right column */}
         <div className="space-y-5">
-          {(job.experience_required != null || job.education_required || (job.certifications && job.certifications.length > 0)) && (
+          {(job.min_years_experience != null || job.education_requirements || (job.certifications && job.certifications.length > 0) || (job.required_skills && job.required_skills.length > 0) || (job.preferred_skills && job.preferred_skills.length > 0)) && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}>
               <Card>
                 <CardHeader className="flex flex-row items-center gap-2 py-3">
@@ -235,29 +220,39 @@ export function JobDescriptionDetail() {
                   <CardTitle>Requirements</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  {job.experience_required != null && (
+                  {job.min_years_experience != null && (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <Clock size={14} className="text-primary-600" />
                         <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Experience</span>
                       </div>
-                      <p className="text-sm font-bold text-text-primary">{job.experience_required}+ Years</p>
-                      <p className="text-xs text-text-secondary mt-0.5">Professional experience required</p>
+                      <p className="text-2xl font-bold text-text-primary">
+                        {job.min_years_experience}{job.max_years_experience != null ? `–${job.max_years_experience}` : '+'} Years
+                      </p>
+                      {job.experience_level && (
+                        <p className="text-xs text-text-secondary mt-0.5">{job.experience_level}</p>
+                      )}
                     </div>
                   )}
 
-                  {job.education_required && (
-                    <>
-                      <div className="border-t border-border" />
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <GraduationCap size={14} className="text-violet-600" />
-                          <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Education</span>
+                  {(() => {
+                    const edu = job.education_requirements;
+                    const eduList = Array.isArray(edu) ? edu.filter(Boolean) : (edu ? [edu] : []);
+                    return eduList.length > 0 ? (
+                      <>
+                        <div className="border-t border-border" />
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <GraduationCap size={14} className="text-violet-600" />
+                            <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Education</span>
+                          </div>
+                          {eduList.map((e, i) => (
+                            <p key={i} className="text-sm font-semibold text-text-primary">{e}</p>
+                          ))}
                         </div>
-                        <p className="text-sm font-semibold text-text-primary">{job.education_required}</p>
-                      </div>
-                    </>
-                  )}
+                      </>
+                    ) : null;
+                  })()}
 
                   {job.certifications && job.certifications.length > 0 && (
                     <>
@@ -273,6 +268,44 @@ export function JobDescriptionDetail() {
                               <CheckCircle2 size={13} className="text-emerald-500 mt-0.5 flex-shrink-0" />
                               <span className="text-xs text-text-secondary leading-relaxed">{cert}</span>
                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {job.required_skills && job.required_skills.length > 0 && (
+                    <>
+                      <div className="border-t border-border" />
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <CheckCircle2 size={14} className="text-primary-600" />
+                          <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Required Skills</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {job.required_skills.map(skill => (
+                            <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-100">
+                              <CheckCircle2 size={11} /> {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {job.preferred_skills && job.preferred_skills.length > 0 && (
+                    <>
+                      <div className="border-t border-border" />
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Star size={14} className="text-amber-600" />
+                          <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Preferred Skills</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {job.preferred_skills.map(skill => (
+                            <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                              <Star size={11} /> {skill}
+                            </span>
                           ))}
                         </div>
                       </div>

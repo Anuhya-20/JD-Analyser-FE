@@ -36,6 +36,7 @@ export function Toaster() {
 
   useEffect(() => {
     _listeners.push(setItems);
+    if (_items.length > 0) setItems([..._items]);
     return () => { _listeners = _listeners.filter(l => l !== setItems); };
   }, []);
 
