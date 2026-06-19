@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Users, Briefcase, Star, TrendingUp, TrendingDown,
+  Users, Briefcase, Star, TrendingUp,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -95,10 +95,28 @@ function SkeletonCard() {
   );
 }
 
+function getStoredUserName(): string {
+  try {
+    const raw = localStorage.getItem('talentiq_user');
+    if (raw) {
+      const u = JSON.parse(raw) as { full_name?: string; email?: string };
+      if (u.full_name) return u.full_name;
+      if (u.email) {
+        return u.email
+          .split('@')[0]
+          .replace(/[._-]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase());
+      }
+    }
+  } catch { /* ignore */ }
+  return '';
+}
+
 export function Dashboard() {
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const userName = getStoredUserName();
 
   useEffect(() => {
     getDashboardOverview()
@@ -122,7 +140,7 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
           <p className="text-text-secondary text-sm mt-0.5">
-            Welcome back, Niharika &middot; Senior Full Stack Developer role active
+            Welcome back, {userName}
           </p>
         </div>
       </div>
@@ -145,14 +163,10 @@ export function Dashboard() {
                 transition={{ delay: i * 0.1 }}
               >
                 <Card hover className="p-5">
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="mb-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorMap[kpi.color]}`}>
                       <kpi.icon size={18} />
                     </div>
-                    <span className={`flex items-center gap-1 text-xs font-medium ${kpi.up ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {kpi.up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      {kpi.trend}
-                    </span>
                   </div>
                   <p className="text-3xl font-bold text-text-primary mb-1">
                     <AnimatedCounter target={kpi.value} />

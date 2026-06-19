@@ -12,6 +12,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
 import { BASE_URL, authHeaders } from '@/lib/api';
+import { toast } from '@/components/ui/Toast';
 
 interface CandidateRating {
   id: string;
@@ -67,8 +68,10 @@ export function CandidateProfile() {
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       setActionStatus(decision);
+      toast.success(decision === 'accepted' ? 'Candidate shortlisted successfully!' : 'Candidate rejected.');
     } catch {
       setActionStatus('idle');
+      toast.error('Action failed. Please try again.');
     }
   };
 

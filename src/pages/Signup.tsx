@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Zap, User } from 'lucide-react';
+import { toast, Toaster } from '@/components/ui/Toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +12,8 @@ const signupSchema = z.object({
   email: z.email('Enter a valid email address'),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
-    .regex(/^[A-Z]/, 'Password must start with a capital letter')
+    .regex(/[A-Z]/, 'Password must contain at least one capital letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/, 'Password must contain at least one special character'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine(data => data.password === data.confirmPassword, {
@@ -91,9 +93,8 @@ export function Signup() {
         setApiError(typeof msg === 'string' ? msg : JSON.stringify(msg));
         return;
       }
-      localStorage.setItem('talentiq_auth', 'true');
-      localStorage.setItem('talentiq_user', JSON.stringify({ full_name: data.fullName, email: data.email }));
-      navigate('/dashboard');
+      toast.success('Account created successfully! Please log in.');
+      setTimeout(() => navigate('/login'), 800);
     } catch {
       setApiError('Unable to connect to the server. Please try again.');
     } finally {
@@ -489,6 +490,7 @@ export function Signup() {
       </div>
 
       <style>{`@keyframes tiq-spin { to { transform: rotate(360deg); } }`}</style>
+      <Toaster />
     </div>
   );
 }

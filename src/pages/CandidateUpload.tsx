@@ -6,7 +6,7 @@ import {
   Upload, FileText, Brain,
   CheckCircle2, AlertCircle, Clock, X,
   ChevronDown, Briefcase, Search, Loader2, Send,
-  Trophy, Eye, Users,
+  Trophy, Eye, Users, ArrowLeft,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -361,6 +361,14 @@ export function CandidateUpload() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
+          {activeTab === 'rankings' && (
+            <button
+              onClick={() => navigate('/dashboard/jobs')}
+              className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors mb-2"
+            >
+              <ArrowLeft size={15} /> Back to Job Descriptions
+            </button>
+          )}
           <h1 className="text-2xl font-bold text-text-primary">Candidates</h1>
           <p className="text-text-secondary text-sm mt-0.5">Upload resumes and view rankings for a job description.</p>
         </div>
