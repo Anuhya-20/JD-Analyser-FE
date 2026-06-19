@@ -2,21 +2,18 @@ import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, FileText, Users, Brain, Trophy,
-  MessageSquare, BarChart3, Settings, ChevronRight, LogOut,
+  LayoutDashboard, FileText, Users, MessageSquare, ChevronRight, LogOut, Star,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { BASE_URL } from '@/lib/api';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Job Descriptions', icon: FileText, path: '/dashboard/jobs' },
   { label: 'Candidates', icon: Users, path: '/dashboard/candidates' },
-  { label: 'AI Analysis', icon: Brain, path: '/dashboard/ai-processing' },
-  { label: 'Ranking Engine', icon: Trophy, path: '/dashboard/rankings' },
+  { label: 'Shortlisted', icon: Star, path: '/dashboard/shortlisted' },
   { label: 'Interview Assistant', icon: MessageSquare, path: '/dashboard/interview' },
-  { label: 'Reports', icon: BarChart3, path: '/dashboard/reports' },
-  { label: 'Settings', icon: Settings, path: '/dashboard/settings' },
 ];
 
 function getUserInitials(name: string) {
@@ -38,7 +35,12 @@ function getStoredUser() {
   return { full_name: '', email: '' };
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [popupOpen, setPopupOpen] = useState(false);
@@ -46,14 +48,14 @@ export function Sidebar() {
   const displayName = user.full_name || user.email || 'User';
   const initials = getUserInitials(displayName);
 
-  return (
-    <aside className="w-64 bg-white border-r border-border flex flex-col fixed left-0 top-16 bottom-0 z-30">
+  const sidebarContent = (
+    <>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-thin">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path ||
             (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
           return (
-            <NavLink key={item.path} to={item.path}>
+            <NavLink key={item.path} to={item.path} onClick={onClose}>
               <motion.div
                 whileHover={{ x: 2 }}
                 className={cn(
@@ -76,9 +78,7 @@ export function Sidebar() {
         <AnimatePresence>
           {popupOpen && (
             <>
-              {/* Backdrop */}
               <div className="fixed inset-0 z-40" onClick={() => setPopupOpen(false)} />
-              {/* Popup */}
               <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -93,10 +93,20 @@ export function Sidebar() {
                 <div className="p-2">
                   <button
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                    onClick={() => {
-                      localStorage.removeItem('talentiq_auth');
-                      localStorage.removeItem('talentiq_user');
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('talentiq_auth_token');
+                        await fetch(`${BASE_URL}/api/v1/auth/logout`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                          },
+                        });
+                      } catch { /* proceed with logout regardless */ }
+                      localStorage.clear();
                       setPopupOpen(false);
+                      onClose();
                       navigate('/login');
                     }}
                   >
@@ -123,6 +133,38 @@ export function Sidebar() {
           </div>
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 z-30 md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar — always visible on desktop, slide-in drawer on mobile */}
+      <aside
+        className={cn(
+          'w-64 bg-white border-r border-border flex flex-col fixed left-0 top-16 bottom-0 z-40',
+          'transition-transform duration-300 ease-in-out',
+          // Desktop: always shown
+          'md:translate-x-0',
+          // Mobile: controlled by isOpen
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

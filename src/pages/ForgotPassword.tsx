@@ -17,6 +17,7 @@ const resetSchema = z.object({
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/^[A-Z]/, 'Password must start with a capital letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/, 'Password must contain at least one special character'),
   confirm: z.string(),
 }).refine(d => d.password === d.confirm, {
